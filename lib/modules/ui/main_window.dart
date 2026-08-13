@@ -15,6 +15,7 @@ import 'monitor_tab.dart';
 import 'settings_tab.dart';
 import 'sidebar.dart';
 import 'whitelist_tab.dart';
+import 'header_bar.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
@@ -453,25 +454,6 @@ class _MainWindowState extends State<MainWindow>
     );
   }
 
-  ButtonStyle _iconBtnStyle() => IconButton.styleFrom(
-        backgroundColor: _c.bgTertiary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: BorderSide(color: _c.borderDefault),
-        ),
-      );
-
-  String get _themeModeLabel {
-    switch (widget.themeNotifier.mode) {
-      case AppThemeMode.dark:
-        return _s.themeDark;
-      case AppThemeMode.light:
-        return _s.themeLight;
-      case AppThemeMode.auto:
-        return _s.themeAuto;
-    }
-  }
-
   // ─── Layout Builder ───────────────────────────────────────────────────────
 
   @override
@@ -536,7 +518,14 @@ class _MainWindowState extends State<MainWindow>
           Expanded(
             child: Column(
               children: [
-                _buildHeaderBar(),
+                HeaderBar(
+                  logic: widget.logic,
+                  themeNotifier: widget.themeNotifier,
+                  activeTab: _activeTab,
+                  searchController: _searchController,
+                  themeButtonKey: _themeButtonKey,
+                  onDataRefreshed: () => _showSnackbar('Data Refreshed'),
+                ),
                 Divider(
                     height: 1, color: _c.borderDefault.withValues(alpha: 0.08)),
                 Expanded(
@@ -546,166 +535,6 @@ class _MainWindowState extends State<MainWindow>
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Header Bar ───────────────────────────────────────────────────────────
-
-  Widget _buildHeaderBar() {
-    String tabTitle = 'Monitor';
-    if (_activeTab == 'WHITELIST') tabTitle = 'Whitelist Manager';
-    if (_activeTab == 'CONSOLE') tabTitle = 'Console Terminal';
-    if (_activeTab == 'HOTSPOT') {
-      tabTitle = widget.languageNotifier.language == AppLanguage.vi
-          ? 'Cấu hình Hotspot'
-          : widget.languageNotifier.language == AppLanguage.zh
-              ? '热点配置'
-              : 'Mobile Hotspot';
-    }
-    if (_activeTab == 'SETTINGS') tabTitle = 'Global Settings';
-    final isTransparent = AppConfig.enableTransparency;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      color: isTransparent
-          ? _c.bgSecondary.withValues(alpha: 0.1)
-          : _c.bgSecondary,
-      child: Row(
-        children: [
-          // Section Title
-          Text(
-            tabTitle,
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: _c.textPrimary),
-          ),
-          const Spacer(),
-
-          // Search Box (only on Monitor & Whitelist tabs)
-          if (_activeTab == 'MONITOR' || _activeTab == 'WHITELIST') ...[
-            Container(
-              width: 260,
-              height: 36,
-              margin: const EdgeInsets.only(right: 12),
-              child: TextFormField(
-                controller: _searchController,
-                style: TextStyle(color: _c.textPrimary, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Search MAC, IP...',
-                  prefixIcon: Icon(Icons.search, size: 16, color: _c.textMuted),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () {
-                            _searchController.clear();
-                            widget.logic.setSearchQuery('');
-                          },
-                          child:
-                              Icon(Icons.clear, size: 16, color: _c.textMuted),
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: _c.bgTertiary.withValues(alpha: 0.4),
-                  contentPadding: EdgeInsets.zero,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(
-                        color: _c.borderDefault.withValues(alpha: 0.15)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(
-                        color: _c.linkAccent.withValues(alpha: 0.8),
-                        width: 1.5),
-                  ),
-                ),
-              ),
-            ),
-          ],
-
-          // Refresh button
-          if (_activeTab == 'MONITOR' || _activeTab == 'WHITELIST') ...[
-            Tooltip(
-              message: _s.tooltipRefresh,
-              child: IconButton(
-                onPressed: () async {
-                  await widget.logic.scanConnectedClients();
-                  await widget.logic.readLogLines();
-                  _showSnackbar('Data Refreshed');
-                },
-                icon: Icon(Icons.refresh, color: _c.textSecondary, size: 18),
-                style: _iconBtnStyle(),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-
-          // Theme reveal toggle
-          Tooltip(
-            key: _themeButtonKey,
-            message: _s.tooltipTheme(_themeModeLabel),
-            child: IconButton(
-              onPressed: () {
-                final themeReveal =
-                    context.findAncestorStateOfType<ThemeRevealState>();
-                if (themeReveal != null) {
-                  themeReveal.triggerReveal(
-                    buttonKey: _themeButtonKey,
-                    onToggle: () {
-                      widget.themeNotifier
-                          .toggle(MediaQuery.platformBrightnessOf(context));
-                      setState(() {});
-                    },
-                  );
-                } else {
-                  widget.themeNotifier
-                      .toggle(MediaQuery.platformBrightnessOf(context));
-                  setState(() {});
-                }
-              },
-              icon: Icon(widget.themeNotifier.modeIcon,
-                  color: _c.linkAccent, size: 18),
-              style: _iconBtnStyle(),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Language toggle
-          Tooltip(
-            message:
-                '${_s.tooltipLanguage}: ${widget.languageNotifier.language.fullLabel}',
-            child: InkWell(
-              onTap: () {
-                widget.languageNotifier.cycleNext();
-                setState(() {});
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: _c.bgTertiary,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: _c.borderDefault),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.language, size: 14, color: _c.linkAccent),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.languageNotifier.language.shortLabel,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: _c.textPrimary),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
         ],
