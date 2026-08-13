@@ -172,10 +172,11 @@ class WifiGuardLogic extends ChangeNotifier {
     return true; // Stub for other platforms
   }
 
-  /// Request Administrator elevation
-  Future<void> elevateAdmin() async {
+  /// Request Administrator elevation, forwarding the original launch [args]
+  /// (e.g. `-debug`) so they aren't lost on the elevated relaunch.
+  Future<void> elevateAdmin(List<String> args) async {
     if (Platform.isWindows) {
-      await WindowsNativeEngine.elevateAdmin();
+      await WindowsNativeEngine.elevateAdmin(args);
     }
   }
 
