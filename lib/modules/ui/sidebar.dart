@@ -1,6 +1,7 @@
 // lib/modules/ui/sidebar.dart
 // Sidebar navigation panel and its nav item widget.
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../logic.dart';
 import '../constants.dart';
@@ -204,6 +205,12 @@ class Sidebar extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
+          // Live debug timestamp — only shown when launched with -debug
+          if (AppConfig.isDebugMode) ...[
+            const _DebugClockBadge(),
+            const SizedBox(height: 12),
+          ],
+
           // Admin Status Indicator
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -322,6 +329,67 @@ class SidebarNavItem extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Live-ticking ISO8601 clock, shown in the sidebar only in -debug mode
+/// so a running app can be visually confirmed as launched with -debug.
+class _DebugClockBadge extends StatefulWidget {
+  const _DebugClockBadge();
+
+  @override
+  State<_DebugClockBadge> createState() => _DebugClockBadgeState();
+}
+
+class _DebugClockBadgeState extends State<_DebugClockBadge> {
+  DateTime _now = DateTime.now();
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: c.statusChanged.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: c.statusChanged.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.bug_report_outlined, size: 12, color: c.statusChanged),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              _now.toIso8601String(),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'Cascadia Code',
+                fontWeight: FontWeight.w600,
+                color: c.statusChanged,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
