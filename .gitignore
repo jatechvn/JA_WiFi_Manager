@@ -1,0 +1,30 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+
+# Platform build outputs
+windows/flutter/ephemeral/
+dist/
+
+# Logs and temporary files
+logs/*.log
+*.log
+assets/temp/
+
+# Local IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated files
+*.g.dart
+*.freezed.dart
+
+# Personal configs / real network data exports
+config.ini
+config.json
+whitelist.json
+whitelist - Copy.json
+ja_wifi_whitelist_*.json
