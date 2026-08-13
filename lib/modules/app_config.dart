@@ -11,6 +11,11 @@ class AppConfig {
   static Map<String, String> _values = {};
   static bool enableTransparency = true;
 
+  /// Set from the `-debug` launch argument in main(). Enables full ISO8601
+  /// timestamps (with milliseconds) in the visible Console log and the
+  /// internal diagnostic log file.
+  static bool isDebugMode = false;
+
   /// Initialize and load config from disk.
   /// Creates config.ini with defaults if it doesn't exist.
   static Future<void> initialize() async {
@@ -47,11 +52,19 @@ class AppConfig {
     return false;
   }
 
+  /// Windows' current light/dark mode, used to seed the theme preference
+  /// the first time config.ini is created (no hardcoded default).
+  static String _systemDefaultTheme() {
+    return PlatformDispatcher.instance.platformBrightness == Brightness.dark
+        ? 'dark'
+        : 'light';
+  }
+
   static Future<void> _load() async {
     try {
       final file = File(_configPath!);
       if (!file.existsSync()) {
-        _values = {'language': 'en', 'theme': 'dark'};
+        _values = {'language': 'en', 'theme': _systemDefaultTheme()};
         await _save();
         return;
       }
@@ -73,7 +86,7 @@ class AppConfig {
         }
       }
     } catch (_) {
-      _values = {'language': 'en', 'theme': 'dark'};
+      _values = {'language': 'en', 'theme': _systemDefaultTheme()};
     }
   }
 

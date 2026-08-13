@@ -1,6 +1,8 @@
 // lib/modules/utils.dart
 // Shared utility helper functions for WiFi Guard
 
+import 'app_config.dart';
+
 /// Format timestamp: yyyy-MM-dd_HH:mm:ss
 String formatTimestamp([DateTime? dt]) {
   final now = dt ?? DateTime.now();
@@ -13,8 +15,12 @@ String formatTimestamp([DateTime? dt]) {
 }
 
 /// Format timestamp for display: yyyy-MM-dd HH:mm:ss
+/// (full ISO8601 with milliseconds when launched with `-debug`)
 String formatTimestampDisplay([DateTime? dt]) {
   final now = dt ?? DateTime.now();
+  if (AppConfig.isDebugMode) {
+    return now.toIso8601String();
+  }
   return '${now.year}-'
       '${now.month.toString().padLeft(2, '0')}-'
       '${now.day.toString().padLeft(2, '0')} '

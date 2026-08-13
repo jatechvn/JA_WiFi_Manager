@@ -201,14 +201,16 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Toggles between light and dark only — no "auto" stop, since the
+  /// initial mode is already seeded from Windows' current theme
+  /// (see AppConfig._systemDefaultTheme). A leftover 'auto' preference from
+  /// before this change resolves to dark on the first toggle.
   void toggle(Brightness platformBrightness) {
     switch (_mode) {
       case AppThemeMode.dark:
         setMode(AppThemeMode.light, platformBrightness);
         break;
       case AppThemeMode.light:
-        setMode(AppThemeMode.auto, platformBrightness);
-        break;
       case AppThemeMode.auto:
         setMode(AppThemeMode.dark, platformBrightness);
         break;
