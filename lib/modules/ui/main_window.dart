@@ -14,6 +14,7 @@ import 'dialogs.dart';
 import 'monitor_tab.dart';
 import 'settings_tab.dart';
 import 'sidebar.dart';
+import 'whitelist_tab.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
@@ -717,7 +718,12 @@ class _MainWindowState extends State<MainWindow>
   Widget _buildMainContent() {
     switch (_activeTab) {
       case 'WHITELIST':
-        return _buildWhitelistTab();
+        return WhitelistTab(
+          logic: widget.logic,
+          onAddDevice: _addDevice,
+          onEditNickname: _editNicknameInline,
+          onDeleteDevice: _deleteDeviceInline,
+        );
       case 'CONSOLE':
         return _buildConsoleTab();
       case 'HOTSPOT':
@@ -736,204 +742,6 @@ class _MainWindowState extends State<MainWindow>
         );
     }
   }
-
-  // ─── WHITELIST TAB ────────────────────────────────────────────────────────
-
-  Widget _buildWhitelistTab() {
-    final filtered = widget.logic.filteredWhitelist;
-    final lang = widget.languageNotifier.language;
-    final isVi = lang == AppLanguage.vi;
-    final isZh = lang == AppLanguage.zh;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Action Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Security Access Whitelist',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: _c.textPrimary),
-            ),
-            ElevatedButton.icon(
-              onPressed: _addDevice,
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(_s.btnAddDevice),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Whitelisted Table View
-        Expanded(
-          child: GlassCard(
-            padding: EdgeInsets.zero,
-            child: filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.verified_user_outlined,
-                          size: 48,
-                          color: _c.textMuted.withValues(alpha: 0.3),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _s.emptyWhitelist,
-                          style: TextStyle(color: _c.textMuted, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  )
-                : Column(
-                    children: [
-                      // Table header
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        color: _c.bgTertiary.withValues(alpha: 0.6),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                                width: 32,
-                                child: StyledWidgets.tableHeaderCell(
-                                    _s.colNum, _c)),
-                            Expanded(
-                                flex: 3,
-                                child: StyledWidgets.tableHeaderCell(
-                                    _s.colMacAddress, _c)),
-                            Expanded(
-                                flex: 5,
-                                child: StyledWidgets.tableHeaderCell(
-                                    _s.colNickname, _c)),
-                            SizedBox(
-                                width: 100,
-                                child: StyledWidgets.tableHeaderCell(
-                                    _s.colStatus, _c)),
-                            SizedBox(
-                                width: 100,
-                                child: StyledWidgets.tableHeaderCell(
-                                    'ACTIONS', _c,
-                                    alignment: Alignment.centerRight)),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      // Table rows
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final entry = filtered[index];
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: index.isEven
-                                    ? Colors.transparent
-                                    : _c.bgSecondary.withValues(alpha: 0.1),
-                                border: Border(
-                                    bottom: BorderSide(
-                                        color: _c.borderDefault
-                                            .withValues(alpha: 0.08))),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 32,
-                                    child: Text('${index + 1}',
-                                        style: TextStyle(
-                                            color: _c.textMuted, fontSize: 12)),
-                                  ),
-                                  Expanded(
-                                    flex: 3,
-                                    child: Text(
-                                      entry.mac,
-                                      style: TextStyle(
-                                        fontFamily: 'Cascadia Code',
-                                        color: _c.linkAccent,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 5,
-                                    child: Text(
-                                      entry.nickname,
-                                      style: TextStyle(
-                                          color: _c.textPrimary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 100,
-                                    child: StyledWidgets.statusBadge(
-                                      widget.logic.connectedClients.any((c) =>
-                                              normalizeMacAddress(c.mac) ==
-                                              normalizeMacAddress(entry.mac))
-                                          ? (isVi
-                                              ? 'KẾT NỐI'
-                                              : isZh
-                                                  ? '在线'
-                                                  : 'ONLINE')
-                                          : (isVi
-                                              ? 'NGOẠI TUYẾN'
-                                              : isZh
-                                                  ? '离线'
-                                                  : 'OFFLINE'),
-                                      _c,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 100,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        // Edit Nickname
-                                        IconButton(
-                                          icon: Icon(Icons.edit_note,
-                                              size: 16,
-                                              color: _c.statusChanged),
-                                          onPressed: () => _editNicknameInline(
-                                              entry.mac, entry.nickname),
-                                          style: StyledWidgets.inlineIconStyle(
-                                              _c.statusChanged),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        // Delete Device
-                                        IconButton(
-                                          icon: Icon(Icons.delete_outline,
-                                              size: 16,
-                                              color: _c.statusRemoved),
-                                          onPressed: () =>
-                                              _deleteDeviceInline(entry),
-                                          style: StyledWidgets.inlineIconStyle(
-                                              _c.statusRemoved),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // ─── CONSOLE TAB (Terminal view) ──────────────────────────────────────────
 
   Widget _buildConsoleTab() {
