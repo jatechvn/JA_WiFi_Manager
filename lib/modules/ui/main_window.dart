@@ -3,7 +3,6 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import '../logic.dart';
 import '../i18n.dart';
@@ -16,6 +15,7 @@ import 'settings_tab.dart';
 import 'sidebar.dart';
 import 'whitelist_tab.dart';
 import 'header_bar.dart';
+import 'console_tab.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
@@ -554,7 +554,16 @@ class _MainWindowState extends State<MainWindow>
           onDeleteDevice: _deleteDeviceInline,
         );
       case 'CONSOLE':
-        return _buildConsoleTab();
+        return ConsoleTab(
+          logic: widget.logic,
+          logScrollController: _logScrollController,
+          logLevelFilter: _logLevelFilter,
+          onLogLevelFilterChanged: (val) =>
+              setState(() => _logLevelFilter = val),
+          autoScrollLogs: _autoScrollLogs,
+          onAutoScrollChanged: (val) => setState(() => _autoScrollLogs = val),
+          onSnackbar: _showSnackbar,
+        );
       case 'HOTSPOT':
         return _buildHotspotTab();
       case 'SETTINGS':
@@ -570,151 +579,6 @@ class _MainWindowState extends State<MainWindow>
           onSnackbar: _showSnackbar,
         );
     }
-  }
-  // ─── CONSOLE TAB (Terminal view) ──────────────────────────────────────────
-
-  Widget _buildConsoleTab() {
-    final rawLogs = widget.logic.logLines;
-
-    // Apply log levels filter
-    final List<String> logs = [];
-    for (final line in rawLogs) {
-      if (_logLevelFilter == 'BLOCKS' && !line.contains('[BLOCK]')) continue;
-      if (_logLevelFilter == 'WARNINGS' && !line.contains('[WARN]')) continue;
-      logs.add(line);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Controls row
-        Row(
-          children: [
-            // Filter dropdown
-            Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: _c.bgTertiary,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: _c.borderDefault),
-              ),
-              child: DropdownButton<String>(
-                value: _logLevelFilter,
-                underline: const SizedBox(),
-                dropdownColor: _c.bgSecondary,
-                style: TextStyle(
-                    color: _c.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold),
-                items: const [
-                  DropdownMenuItem(value: 'ALL', child: Text('All Events')),
-                  DropdownMenuItem(value: 'BLOCKS', child: Text('Blocks Only')),
-                  DropdownMenuItem(
-                      value: 'WARNINGS', child: Text('Warnings Only')),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _logLevelFilter = val);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Auto scroll checkbox
-            Row(
-              children: [
-                Checkbox(
-                  value: _autoScrollLogs,
-                  onChanged: (val) =>
-                      setState(() => _autoScrollLogs = val ?? true),
-                ),
-                Text(
-                  'Auto Scroll',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: _c.textSecondary,
-                      fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const Spacer(),
-
-            // Copy logs button
-            OutlinedButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: rawLogs.join('\n')));
-                _showSnackbar('Logs copied to clipboard');
-              },
-              icon: const Icon(Icons.copy, size: 14),
-              label: const Text('Copy All'),
-              style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Clear logs button
-            OutlinedButton.icon(
-              onPressed: () async {
-                await widget.logic.clearLogs();
-                _showSnackbar('Log Console Cleared');
-              },
-              icon: const Icon(Icons.cleaning_services, size: 14),
-              label: const Text('Clear'),
-              style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Terminal Screen
-        Expanded(
-          child: GlassCard(
-            padding: const EdgeInsets.all(16),
-            backgroundColor: _c.bgPrimary.withValues(alpha: 0.45),
-            borderColor: _c.borderDefault.withValues(alpha: 0.15),
-            child: ClipRect(
-              child: ListView.builder(
-                controller: _logScrollController,
-                itemCount: logs.length,
-                itemBuilder: (context, index) {
-                  final log = logs[index];
-                  Color txtColor = _c.textSecondary;
-                  if (log.contains('[BLOCK]')) {
-                    txtColor = _c.statusRemoved;
-                  } else if (log.contains('[ALLOW]')) {
-                    txtColor = _c.statusActive;
-                  } else if (log.contains('[WARN]')) {
-                    txtColor = _c.statusChanged;
-                  } else if (log.contains('[OK]')) {
-                    txtColor = _c.statusActive;
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      log,
-                      style: TextStyle(
-                        fontFamily: 'Cascadia Code',
-                        fontSize: 12,
-                        color: txtColor,
-                        height: 1.4,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildHotspotTab() {
