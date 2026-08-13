@@ -17,8 +17,12 @@ import 'modules/ui/main_window.dart';
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize daily logging (-debug enables full-precision ISO timestamps)
-  setupLogger(isDebugMode: args.contains('-debug'));
+  // -debug enables full-precision ISO timestamps in the visible Console log
+  // and the internal diagnostic log file.
+  AppConfig.isDebugMode = args.contains('-debug');
+
+  // Initialize daily logging
+  setupLogger(isDebugMode: AppConfig.isDebugMode);
 
   // Load config from config.ini (language preference, theme preference, transparency settings)
   await AppConfig.initialize();
