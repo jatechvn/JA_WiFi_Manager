@@ -125,6 +125,7 @@ Ví dụ: `DEBUG · v2.4.0 (2026-08-11 14:27:38)`
 - `<build time>` là **thời điểm build ra binary**, KHÔNG PHẢI thời gian hiện tại (không dùng đồng hồ sống/ticking). Lấy từ mtime của artifact biên dịch AOT (`data/app.so` với Windows Release build), fallback về mtime của chính file `.exe` nếu không có `app.so` (ví dụ bản debug/JIT chạy qua `flutter run`).
 - Format thời gian: `yyyy-MM-dd HH:mm:ss` (không dùng ISO có chữ `T`/mili-giây ở badge này — ISO đầy đủ chỉ dùng cho log, xem mục 2).
 - Chỉ hiển thị khi app được khởi chạy với cờ `-debug` (ẩn hoàn toàn ở chế độ bình thường).
+- **Nếu chữ bị tràn khỏi khung badge** (thường xảy ra ở sidebar hẹp): dùng hiệu ứng **Bounce / Ping-Pong Marquee** (chữ trượt qua lại trái-phải liên tục, KHÔNG lặp một chiều kiểu marquee cổ điển, KHÔNG cắt bằng `TextOverflow.ellipsis`) để toàn bộ nội dung vẫn đọc được theo thời gian. Chỉ bật animation khi đo được text thực sự tràn (so `TextPainter` width với width khả dụng) — nếu vừa khung thì hiển thị tĩnh, không chạy animation thừa.
 
 ### 4. Lưu ý khi app tự nâng quyền Admin (self-elevation)
 Nếu app cần chạy quyền Administrator và tự relaunch bằng `Start-Process ... -Verb RunAs` (hoặc cơ chế tương đương), **PHẢI forward lại toàn bộ command-line args gốc** (bao gồm `-debug`) sang tiến trình elevated mới, ví dụ dùng `-ArgumentList`:
