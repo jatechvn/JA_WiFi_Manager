@@ -1,0 +1,10 @@
+========================================================================
+                       PROJECT INFORMATION CARD
+========================================================================
+Project Name : JA WiFi Hotspot Guard
+Tech Stack   : Flutter 3.x / Dart 3.x
+Managed By   : JA Auto Git
+Website      : https://jatechvn.github.io/
+------------------------------------------------------------------------
+Description  : Windows Desktop App for managing Mobile Hotspot whitelisting and auto-blocking intruder devices with ARP poisoning and firewall rules.
+========================================================================
