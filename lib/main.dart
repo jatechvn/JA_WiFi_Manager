@@ -105,7 +105,7 @@ void main(List<String> args) async {
   // (Firewall and ARP commands require administrator privileges)
   final isAdmin = await wifiLogic.isAdmin();
   if (!isAdmin) {
-    await wifiLogic.elevateAdmin();
+    await wifiLogic.elevateAdmin(args);
     exit(0);
   }
 
