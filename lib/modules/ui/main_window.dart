@@ -12,6 +12,8 @@ import '../utils.dart';
 import '../app_config.dart';
 import 'styles.dart';
 import 'dialogs.dart';
+import 'monitor_tab.dart';
+import 'settings_tab.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
@@ -1025,7 +1027,7 @@ class _MainWindowState extends State<MainWindow>
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(
+              child: StatCard(
                 title: 'Connected Clients',
                 value: '$total',
                 icon: Icons.devices,
@@ -1034,7 +1036,7 @@ class _MainWindowState extends State<MainWindow>
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildStatCard(
+              child: StatCard(
                 title: 'Allowed / Secure',
                 value: '$allowed',
                 icon: Icons.verified_user,
@@ -1043,7 +1045,7 @@ class _MainWindowState extends State<MainWindow>
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildStatCard(
+              child: StatCard(
                 title: 'Blocked Intruders',
                 value: '$blocked',
                 icon: Icons.gpp_bad,
@@ -1157,54 +1159,6 @@ class _MainWindowState extends State<MainWindow>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    bool glow = false,
-  }) {
-    return GlassCard(
-      padding: const EdgeInsets.all(18),
-      borderColor: glow ? color.withValues(alpha: 0.35) : null,
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: _c.textMuted,
-                      fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                      fontSize: 22,
-                      color: _c.textPrimary,
-                      fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2776,39 +2730,20 @@ class _MainWindowState extends State<MainWindow>
                     height: 210,
                     child: TabBarView(
                       children: [
-                        _buildTabDocs(
-                            _s.guideOverviewTitle, _s.guideOverviewContent, c),
-                        _buildTabDocs(
-                            _s.guideSecurityTitle, _s.guideSecurityContent, c),
-                        _buildTabDocs(_s.guideFAQTitle, _s.guideFAQContent, c),
+                        TabDocsSection(
+                            title: _s.guideOverviewTitle,
+                            body: _s.guideOverviewContent),
+                        TabDocsSection(
+                            title: _s.guideSecurityTitle,
+                            body: _s.guideSecurityContent),
+                        TabDocsSection(
+                            title: _s.guideFAQTitle, body: _s.guideFAQContent),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabDocs(String title, String body, AppColors c) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.bold,
-                color: c.textPrimary),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            body,
-            style: TextStyle(fontSize: 12, color: c.textSecondary, height: 1.6),
           ),
         ],
       ),
