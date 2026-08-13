@@ -6,6 +6,9 @@ build/
 # Platform build outputs
 windows/flutter/ephemeral/
 dist/
+dist_release_*/
+dist_pack/
+*.lnk
 
 # Logs and temporary files
 logs/*.log
