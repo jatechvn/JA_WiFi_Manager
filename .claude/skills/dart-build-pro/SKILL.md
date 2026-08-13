@@ -109,3 +109,26 @@ Ví dụ cấu hình trong Dart:
     // ...
   }
 ```
+
+**Lưu ý:** đảm bảo timestamp debug này áp dụng cho ĐÚNG hàm format đang thực sự hiển thị trên UI (ví dụ tab Console/Logs) — không chỉ cho một logger nội bộ ghi ra file riêng mà người dùng không nhìn thấy. Kiểm tra bằng cách grep xem UI đang gọi hàm format nào trước khi sửa.
+
+### 3. Debug Badge hiển thị trên giao diện chính (bắt buộc)
+Ngoài log ra file/console, app PHẢI có một badge nhỏ, luôn hiển thị trên giao diện chính (đặt gần khu vực trạng thái/engine chính của app, ví dụ cạnh card trạng thái hoạt động) khi chạy ở chế độ debug, theo đúng format:
+
+```
+DEBUG · v<version> (<build time>)
+```
+
+Ví dụ: `DEBUG · v2.4.0 (2026-08-11 14:27:38)`
+
+- `<version>` lấy từ hằng số version của app (constants.dart hoặc tương đương).
+- `<build time>` là **thời điểm build ra binary**, KHÔNG PHẢI thời gian hiện tại (không dùng đồng hồ sống/ticking). Lấy từ mtime của artifact biên dịch AOT (`data/app.so` với Windows Release build), fallback về mtime của chính file `.exe` nếu không có `app.so` (ví dụ bản debug/JIT chạy qua `flutter run`).
+- Format thời gian: `yyyy-MM-dd HH:mm:ss` (không dùng ISO có chữ `T`/mili-giây ở badge này — ISO đầy đủ chỉ dùng cho log, xem mục 2).
+- Chỉ hiển thị khi app được khởi chạy với cờ `-debug` (ẩn hoàn toàn ở chế độ bình thường).
+
+### 4. Lưu ý khi app tự nâng quyền Admin (self-elevation)
+Nếu app cần chạy quyền Administrator và tự relaunch bằng `Start-Process ... -Verb RunAs` (hoặc cơ chế tương đương), **PHẢI forward lại toàn bộ command-line args gốc** (bao gồm `-debug`) sang tiến trình elevated mới, ví dụ dùng `-ArgumentList`:
+```powershell
+Start-Process "<exePath>" -ArgumentList "-debug" -Verb RunAs
+```
+Nếu quên bước này, tiến trình elevated (tiến trình người dùng thực sự tương tác) sẽ luôn khởi động với danh sách args rỗng — cờ `-debug` bị mất silently dù người dùng đã chạy đúng `debug.bat`, rất khó phát hiện vì không có lỗi nào được ném ra.

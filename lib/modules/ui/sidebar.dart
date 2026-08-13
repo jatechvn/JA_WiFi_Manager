@@ -335,11 +335,11 @@ class SidebarNavItem extends StatelessWidget {
   }
 }
 
-/// Shows when the running binary was actually built — the mtime of
-/// data/app.so (the AOT-compiled Dart snapshot bundled by
-/// `flutter build windows --release`), not the current time. Lets a
-/// developer confirm they're running the build they just compiled rather
-/// than a stale cached one. Falls back to the exe's own mtime for
+/// Standard dart-build-pro debug badge: `DEBUG · v<version> (<build time>)`.
+/// Build time is the mtime of data/app.so (the AOT-compiled Dart snapshot
+/// bundled by `flutter build windows --release`), not the current time —
+/// lets a developer confirm they're running the build they just compiled
+/// rather than a stale cached one. Falls back to the exe's own mtime for
 /// JIT/`flutter run` debug builds, which have no app.so.
 class _DebugClockBadge extends StatelessWidget {
   const _DebugClockBadge();
@@ -359,12 +359,18 @@ class _DebugClockBadge extends StatelessWidget {
     return null;
   }
 
+  String _formatBuildTime(DateTime dt) {
+    String pad(int n) => n.toString().padLeft(2, '0');
+    return '${dt.year}-${pad(dt.month)}-${pad(dt.day)} '
+        '${pad(dt.hour)}:${pad(dt.minute)}:${pad(dt.second)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
     final buildTime = _resolveBuildTime();
-    final label =
-        buildTime != null ? 'Built ${buildTime.toIso8601String()}' : 'Built —';
+    final buildTimeStr = buildTime != null ? _formatBuildTime(buildTime) : '—';
+    final label = 'DEBUG · v$appVersion ($buildTimeStr)';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
