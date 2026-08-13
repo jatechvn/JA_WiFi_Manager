@@ -535,7 +535,49 @@ class _MainWindowState extends State<MainWindow>
           onNavigateToTab: (tab) => setState(() => _activeTab = tab),
         );
       case 'SETTINGS':
-        return _buildSettingsTab();
+        return SettingsTab(
+          logic: widget.logic,
+          startupWithWindows: _startupWithWindows,
+          onStartupWithWindowsChanged: (val) async {
+            await widget.logic.setStartupEnabled(val);
+            setState(() => _startupWithWindows = val);
+            _showSnackbar(val
+                ? 'Startup with Windows enabled'
+                : 'Startup with Windows disabled');
+          },
+          startMinimized: _startMinimized,
+          onStartMinimizedChanged: (val) async {
+            await AppConfig.set('start_minimized', val.toString());
+            setState(() => _startMinimized = val);
+            _showSnackbar(
+                val ? 'Start minimized enabled' : 'Start minimized disabled');
+          },
+          closeToTray: _closeToTray,
+          onCloseToTrayChanged: (val) async {
+            await AppConfig.set('close_to_tray', val.toString());
+            setState(() => _closeToTray = val);
+            _showSnackbar(
+                val ? 'Close to tray enabled' : 'Close to tray disabled');
+          },
+          autoStartGuard: _autoStartGuard,
+          onAutoStartGuardChanged: (val) async {
+            await AppConfig.set('auto_start_guard', val.toString());
+            setState(() => _autoStartGuard = val);
+            _showSnackbar(
+                val ? 'Auto-start guard enabled' : 'Auto-start guard disabled');
+          },
+          autoStartHotspot: _autoStartHotspot,
+          onAutoStartHotspotChanged: (val) async {
+            await AppConfig.set('auto_start_hotspot', val.toString());
+            setState(() => _autoStartHotspot = val);
+            _showSnackbar(val
+                ? 'Auto-start hotspot enabled'
+                : 'Auto-start hotspot disabled');
+          },
+          onImportWhitelist: _importWhitelist,
+          onExportWhitelist: _exportWhitelist,
+          onSnackbar: _showSnackbar,
+        );
       case 'MONITOR':
       default:
         return MonitorTab(
@@ -547,442 +589,5 @@ class _MainWindowState extends State<MainWindow>
           onSnackbar: _showSnackbar,
         );
     }
-  }
-
-  // ─── SETTINGS TAB (Unified Config & User Guide) ───────────────────────────
-
-  Widget _buildSettingsTab() {
-    final c = _c;
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Row of Transparency & Interval Card
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // System Preferences
-              Expanded(
-                child: GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      StyledWidgets.sectionHeader(_s.settingsSystemTitle, c,
-                          icon: Icons.tune),
-                      const SizedBox(height: 12),
-
-                      // Auto Check Interval
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(Icons.timer_outlined,
-                                    size: 20, color: c.linkAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_s.settingsGuardInterval,
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: c.textPrimary,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(_s.settingsGuardIntervalDesc,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            height: 32,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: c.bgTertiary,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: c.borderDefault),
-                            ),
-                            child: DropdownButton<int>(
-                              value: widget.logic.checkIntervalSeconds,
-                              underline: const SizedBox(),
-                              dropdownColor: c.bgSecondary,
-                              style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold),
-                              items: [
-                                DropdownMenuItem(
-                                    value: 5, child: Text(_s.settingsSec5)),
-                                DropdownMenuItem(
-                                    value: 10, child: Text(_s.settingsSec10)),
-                                DropdownMenuItem(
-                                    value: 30, child: Text(_s.settingsSec30)),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  widget.logic.setCheckInterval(val);
-                                  _showSnackbar(
-                                      'Interval updated to $val seconds');
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Startup with Windows
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(Icons.power_settings_new_outlined,
-                                    size: 20, color: c.linkAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_s.settingStartup,
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: c.textPrimary,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(_s.settingStartupDesc,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _startupWithWindows,
-                            activeThumbColor: c.statusActive,
-                            onChanged: (val) async {
-                              await widget.logic.setStartupEnabled(val);
-                              setState(() {
-                                _startupWithWindows = val;
-                              });
-                              _showSnackbar(val
-                                  ? 'Startup with Windows enabled'
-                                  : 'Startup with Windows disabled');
-                            },
-                          ),
-                        ],
-                      ),
-
-                      // Start Minimized to Tray
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(Icons.visibility_off_outlined,
-                                    size: 20, color: c.linkAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_s.settingStartMinimized,
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: c.textPrimary,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(_s.settingStartMinimizedDesc,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _startMinimized,
-                            activeThumbColor: c.statusActive,
-                            onChanged: (val) async {
-                              await AppConfig.set(
-                                  'start_minimized', val.toString());
-                              setState(() {
-                                _startMinimized = val;
-                              });
-                              _showSnackbar(val
-                                  ? 'Start minimized enabled'
-                                  : 'Start minimized disabled');
-                            },
-                          ),
-                        ],
-                      ),
-
-                      // Close to System Tray
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(Icons.close_fullscreen_outlined,
-                                    size: 20, color: c.linkAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_s.settingCloseToTray,
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: c.textPrimary,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(_s.settingCloseToTrayDesc,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _closeToTray,
-                            activeThumbColor: c.statusActive,
-                            onChanged: (val) async {
-                              await AppConfig.set(
-                                  'close_to_tray', val.toString());
-                              setState(() {
-                                _closeToTray = val;
-                              });
-                              _showSnackbar(val
-                                  ? 'Close to tray enabled'
-                                  : 'Close to tray disabled');
-                            },
-                          ),
-                        ],
-                      ),
-
-                      // Auto-start Guard on Launch
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(Icons.shield_outlined,
-                                    size: 20, color: c.linkAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_s.settingAutoStartGuard,
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: c.textPrimary,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(_s.settingAutoStartGuardDesc,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _autoStartGuard,
-                            activeThumbColor: c.statusActive,
-                            onChanged: (val) async {
-                              await AppConfig.set(
-                                  'auto_start_guard', val.toString());
-                              setState(() {
-                                _autoStartGuard = val;
-                              });
-                              _showSnackbar(val
-                                  ? 'Auto-start guard enabled'
-                                  : 'Auto-start guard disabled');
-                            },
-                          ),
-                        ],
-                      ),
-
-                      // Auto-start Hotspot on Launch
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(Icons.wifi_tethering_outlined,
-                                    size: 20, color: c.linkAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_s.settingAutoStartHotspot,
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: c.textPrimary,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(_s.settingAutoStartHotspotDesc,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _autoStartHotspot,
-                            activeThumbColor: c.statusActive,
-                            onChanged: (val) async {
-                              await AppConfig.set(
-                                  'auto_start_hotspot', val.toString());
-                              setState(() {
-                                _autoStartHotspot = val;
-                              });
-                              _showSnackbar(val
-                                  ? 'Auto-start hotspot enabled'
-                                  : 'Auto-start hotspot disabled');
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Whitelist Backup Services
-              Expanded(
-                child: GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      StyledWidgets.sectionHeader(
-                          'Whitelist Data Management', c,
-                          icon: Icons.folder_zip_outlined),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Import or export your whitelisted MAC addresses database to back up your configurations.',
-                        style: TextStyle(
-                            fontSize: 12, color: c.textSecondary, height: 1.5),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _importWhitelist,
-                              icon: const Icon(Icons.file_open_outlined,
-                                  size: 16),
-                              label: const Text('Import Whitelist'),
-                              style: OutlinedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _exportWhitelist,
-                              icon: const Icon(Icons.download, size: 16),
-                              label: const Text('Export Whitelist'),
-                              style: OutlinedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // User Guide Card
-          GlassCard(
-            padding: const EdgeInsets.all(20),
-            child: DefaultTabController(
-              length: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  StyledWidgets.sectionHeader('System Documentation & Guide', c,
-                      icon: Icons.info_outline),
-                  TabBar(
-                    labelColor: c.linkAccent,
-                    unselectedLabelColor: c.textMuted,
-                    indicatorColor: c.linkAccent,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    tabs: [
-                      Tab(text: _s.guideTabGeneral),
-                      Tab(text: _s.guideTabSecurity),
-                      Tab(text: _s.guideTabFAQ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 210,
-                    child: TabBarView(
-                      children: [
-                        TabDocsSection(
-                            title: _s.guideOverviewTitle,
-                            body: _s.guideOverviewContent),
-                        TabDocsSection(
-                            title: _s.guideSecurityTitle,
-                            body: _s.guideSecurityContent),
-                        TabDocsSection(
-                            title: _s.guideFAQTitle, body: _s.guideFAQContent),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
