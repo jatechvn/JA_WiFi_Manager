@@ -1,8 +1,9 @@
 // lib/modules/ui/sidebar.dart
 // Sidebar navigation panel and its nav item widget.
 
-import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import '../logic.dart';
 import '../constants.dart';
 import '../i18n.dart';
@@ -334,36 +335,36 @@ class SidebarNavItem extends StatelessWidget {
   }
 }
 
-/// Live-ticking ISO8601 clock, shown in the sidebar only in -debug mode
-/// so a running app can be visually confirmed as launched with -debug.
-class _DebugClockBadge extends StatefulWidget {
+/// Shows when the running binary was actually built — the mtime of
+/// data/app.so (the AOT-compiled Dart snapshot bundled by
+/// `flutter build windows --release`), not the current time. Lets a
+/// developer confirm they're running the build they just compiled rather
+/// than a stale cached one. Falls back to the exe's own mtime for
+/// JIT/`flutter run` debug builds, which have no app.so.
+class _DebugClockBadge extends StatelessWidget {
   const _DebugClockBadge();
 
-  @override
-  State<_DebugClockBadge> createState() => _DebugClockBadgeState();
-}
-
-class _DebugClockBadgeState extends State<_DebugClockBadge> {
-  DateTime _now = DateTime.now();
-  Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
+  DateTime? _resolveBuildTime() {
+    try {
+      final exeDir = p.dirname(Platform.resolvedExecutable);
+      final appSo = File(p.join(exeDir, 'data', 'app.so'));
+      if (appSo.existsSync()) {
+        return appSo.lastModifiedSync();
+      }
+      final exe = File(Platform.resolvedExecutable);
+      if (exe.existsSync()) {
+        return exe.lastModifiedSync();
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
+    final buildTime = _resolveBuildTime();
+    final label =
+        buildTime != null ? 'Built ${buildTime.toIso8601String()}' : 'Built —';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -379,7 +380,7 @@ class _DebugClockBadgeState extends State<_DebugClockBadge> {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              _now.toIso8601String(),
+              label,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 10,
