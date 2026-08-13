@@ -392,6 +392,35 @@ class StyledWidgets {
     );
   }
 
+  /// Table header cell label
+  static Widget tableHeaderCell(String text, AppColors c,
+      {Alignment alignment = Alignment.centerLeft}) {
+    return Align(
+      alignment: alignment,
+      child: Text(
+        text,
+        style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
+            color: c.textMuted,
+            letterSpacing: 0.5),
+      ),
+    );
+  }
+
+  /// Compact bordered style for inline row-action icon buttons
+  static ButtonStyle inlineIconStyle(Color color) {
+    return IconButton.styleFrom(
+      backgroundColor: color.withValues(alpha: 0.08),
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(28, 28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(color: color.withValues(alpha: 0.2)),
+      ),
+    );
+  }
+
   /// Section header
   static Widget sectionHeader(String title, AppColors c,
       {IconData? icon, Color? textColor}) {

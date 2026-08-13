@@ -1109,20 +1109,34 @@ class _MainWindowState extends State<MainWindow>
                         color: _c.bgTertiary.withValues(alpha: 0.6),
                         child: Row(
                           children: [
-                            SizedBox(width: 32, child: _headerCell(_s.colNum)),
-                            Expanded(
-                                flex: 2, child: _headerCell(_s.colIpAddress)),
-                            Expanded(
-                                flex: 3, child: _headerCell(_s.colMacAddress)),
-                            Expanded(
-                                flex: 3, child: _headerCell(_s.colNickname)),
                             SizedBox(
-                                width: 105, child: _headerCell(_s.colStatus)),
+                                width: 32,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colNum, _c)),
+                            Expanded(
+                                flex: 2,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colIpAddress, _c)),
+                            Expanded(
+                                flex: 3,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colMacAddress, _c)),
+                            Expanded(
+                                flex: 3,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colNickname, _c)),
                             SizedBox(
-                                width: 100, child: _headerCell(_s.colLastSeen)),
+                                width: 105,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colStatus, _c)),
+                            SizedBox(
+                                width: 100,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colLastSeen, _c)),
                             SizedBox(
                                 width: 95,
-                                child: _headerCell(_s.colActions,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colActions, _c,
                                     alignment: Alignment.centerRight)),
                           ],
                         ),
@@ -1326,7 +1340,7 @@ class _MainWindowState extends State<MainWindow>
                       icon: Icon(Icons.block_flipped,
                           size: 16, color: _c.statusRemoved),
                       onPressed: () => _quickBlockClient(client),
-                      style: _inlineIconStyle(_c.statusRemoved),
+                      style: StyledWidgets.inlineIconStyle(_c.statusRemoved),
                     ),
                   )
                 else
@@ -1336,7 +1350,7 @@ class _MainWindowState extends State<MainWindow>
                       icon: Icon(Icons.add_moderator_outlined,
                           size: 16, color: _c.statusActive),
                       onPressed: () => _quickWhitelistClient(client),
-                      style: _inlineIconStyle(_c.statusActive),
+                      style: StyledWidgets.inlineIconStyle(_c.statusActive),
                     ),
                   ),
                 const SizedBox(width: 6),
@@ -1348,25 +1362,13 @@ class _MainWindowState extends State<MainWindow>
                         size: 16, color: _c.statusChanged),
                     onPressed: () =>
                         _editNicknameInline(client.mac, client.nickname),
-                    style: _inlineIconStyle(_c.statusChanged),
+                    style: StyledWidgets.inlineIconStyle(_c.statusChanged),
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  ButtonStyle _inlineIconStyle(Color color) {
-    return IconButton.styleFrom(
-      backgroundColor: color.withValues(alpha: 0.08),
-      padding: EdgeInsets.zero,
-      minimumSize: const Size(28, 28),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-        side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
     );
   }
@@ -1433,16 +1435,26 @@ class _MainWindowState extends State<MainWindow>
                         color: _c.bgTertiary.withValues(alpha: 0.6),
                         child: Row(
                           children: [
-                            SizedBox(width: 32, child: _headerCell(_s.colNum)),
-                            Expanded(
-                                flex: 3, child: _headerCell(_s.colMacAddress)),
-                            Expanded(
-                                flex: 5, child: _headerCell(_s.colNickname)),
                             SizedBox(
-                                width: 100, child: _headerCell(_s.colStatus)),
+                                width: 32,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colNum, _c)),
+                            Expanded(
+                                flex: 3,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colMacAddress, _c)),
+                            Expanded(
+                                flex: 5,
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colNickname, _c)),
                             SizedBox(
                                 width: 100,
-                                child: _headerCell('ACTIONS',
+                                child: StyledWidgets.tableHeaderCell(
+                                    _s.colStatus, _c)),
+                            SizedBox(
+                                width: 100,
+                                child: StyledWidgets.tableHeaderCell(
+                                    'ACTIONS', _c,
                                     alignment: Alignment.centerRight)),
                           ],
                         ),
@@ -1527,7 +1539,7 @@ class _MainWindowState extends State<MainWindow>
                                               color: _c.statusChanged),
                                           onPressed: () => _editNicknameInline(
                                               entry.mac, entry.nickname),
-                                          style: _inlineIconStyle(
+                                          style: StyledWidgets.inlineIconStyle(
                                               _c.statusChanged),
                                         ),
                                         const SizedBox(width: 6),
@@ -1538,7 +1550,7 @@ class _MainWindowState extends State<MainWindow>
                                               color: _c.statusRemoved),
                                           onPressed: () =>
                                               _deleteDeviceInline(entry),
-                                          style: _inlineIconStyle(
+                                          style: StyledWidgets.inlineIconStyle(
                                               _c.statusRemoved),
                                         ),
                                       ],
@@ -2802,20 +2814,4 @@ class _MainWindowState extends State<MainWindow>
       ),
     );
   }
-
-  // ─── Mini Helpers ──────────────────────────────────────────────────────────
-
-  Widget _headerCell(String text,
-          {Alignment alignment = Alignment.centerLeft}) =>
-      Align(
-        alignment: alignment,
-        child: Text(
-          text,
-          style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-              color: _c.textMuted,
-              letterSpacing: 0.5),
-        ),
-      );
 }
