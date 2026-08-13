@@ -772,11 +772,51 @@ class WifiGuardLogic extends ChangeNotifier {
         ));
       }
 
-      _connectedClients = list;
+      // Get-NetNeighbor reports one row per (IP, MAC) pair, so a single
+      // device shows up multiple times: once for its IPv6 link-local
+      // neighbor entry and once for its IPv4 entry, plus stale leftover
+      // IPv4 entries from a previous DHCP lease. Collapse to one row per
+      // MAC, keeping the most useful entry (IPv4 over IPv6, Reachable over
+      // Stale/Delay/Probe).
+      final Map<String, ClientDevice> deduped = {};
+      for (final client in list) {
+        final existing = deduped[client.mac];
+        if (existing == null ||
+            _neighborPriority(client) > _neighborPriority(existing)) {
+          deduped[client.mac] = client;
+        }
+      }
+
+      _connectedClients = deduped.values.toList();
       notifyListeners();
     } catch (e) {
       _logger.warning('Scan connected clients failed: $e');
     }
+  }
+
+  int _neighborPriority(ClientDevice client) {
+    final isIPv4 = !client.ip.contains(':');
+    int stateScore;
+    switch (client.state) {
+      case 'Reachable':
+        stateScore = 5;
+        break;
+      case 'Stale':
+        stateScore = 4;
+        break;
+      case 'Permanent':
+        stateScore = 3;
+        break;
+      case 'Delay':
+        stateScore = 2;
+        break;
+      case 'Probe':
+        stateScore = 1;
+        break;
+      default:
+        stateScore = 0;
+    }
+    return (isIPv4 ? 100 : 0) + stateScore;
   }
 
   // ─── Log Management ───────────────────────────────────────────────────────

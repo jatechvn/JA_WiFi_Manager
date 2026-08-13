@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 
 IOSink? _logFileSink;
 
-void setupLogger() {
+void setupLogger({bool isDebugMode = false}) {
   Logger.root.level = Level.ALL;
 
   // Create logs directory relative to executable in release mode
@@ -41,8 +41,13 @@ void setupLogger() {
   _logFileSink = logFile.openWrite(mode: FileMode.append);
 
   Logger.root.onRecord.listen((record) {
+    // Full ISO8601 timestamp (with milliseconds) in debug mode for precise
+    // diagnostics; truncated HH:mm:ss otherwise to keep release logs terse.
+    final timestamp = isDebugMode
+        ? record.time.toIso8601String()
+        : record.time.toIso8601String().substring(11, 19);
     final message =
-        '[${record.time}] ${record.level.name}: ${record.loggerName} - ${record.message}';
+        '[$timestamp] ${record.level.name}: ${record.loggerName} - ${record.message}';
     // Console output
     // ignore: avoid_print
     print(message);
