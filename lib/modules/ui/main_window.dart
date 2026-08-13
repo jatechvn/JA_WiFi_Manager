@@ -14,6 +14,7 @@ import 'styles.dart';
 import 'dialogs.dart';
 import 'monitor_tab.dart';
 import 'settings_tab.dart';
+import 'sidebar.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
@@ -620,30 +621,34 @@ class _MainWindowState extends State<MainWindow>
           const SizedBox(height: 24),
 
           // Navigation Links
-          _buildSidebarNavItem(
-            tabCode: 'MONITOR',
+          SidebarNavItem(
             icon: Icons.devices,
             label: _s.tabMonitor,
+            isSelected: _activeTab == 'MONITOR',
+            onTap: () => setState(() => _activeTab = 'MONITOR'),
             badgeCount: clients.length,
           ),
           const SizedBox(height: 4),
-          _buildSidebarNavItem(
-            tabCode: 'WHITELIST',
+          SidebarNavItem(
             icon: Icons.verified_user_outlined,
             label: _s.tabWhitelist,
+            isSelected: _activeTab == 'WHITELIST',
+            onTap: () => setState(() => _activeTab = 'WHITELIST'),
             badgeCount: wl.length,
           ),
           const SizedBox(height: 4),
-          _buildSidebarNavItem(
-            tabCode: 'CONSOLE',
+          SidebarNavItem(
             icon: Icons.terminal_outlined,
             label: _s.tabLogs,
+            isSelected: _activeTab == 'CONSOLE',
+            onTap: () => setState(() => _activeTab = 'CONSOLE'),
             trailing: isGuardActive ? const BlinkingDot(size: 8.0) : null,
           ),
           const SizedBox(height: 4),
-          _buildSidebarNavItem(
-            tabCode: 'HOTSPOT',
+          SidebarNavItem(
             icon: Icons.wifi_tethering,
+            isSelected: _activeTab == 'HOTSPOT',
+            onTap: () => setState(() => _activeTab = 'HOTSPOT'),
             label: widget.languageNotifier.language == AppLanguage.vi
                 ? 'Điểm phát sóng'
                 : widget.languageNotifier.language == AppLanguage.zh
@@ -651,10 +656,11 @@ class _MainWindowState extends State<MainWindow>
                     : 'Mobile Hotspot',
           ),
           const SizedBox(height: 4),
-          _buildSidebarNavItem(
-            tabCode: 'SETTINGS',
+          SidebarNavItem(
             icon: Icons.settings_outlined,
             label: 'Settings',
+            isSelected: _activeTab == 'SETTINGS',
+            onTap: () => setState(() => _activeTab = 'SETTINGS'),
           ),
 
           const Spacer(),
@@ -755,80 +761,6 @@ class _MainWindowState extends State<MainWindow>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarNavItem({
-    required String tabCode,
-    required IconData icon,
-    required String label,
-    int? badgeCount,
-    Widget? trailing,
-  }) {
-    final isSelected = _activeTab == tabCode;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => setState(() {
-          _activeTab = tabCode;
-        }),
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? _c.linkAccent.withValues(alpha: 0.12)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected ? _c.linkAccent : _c.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? _c.textPrimary : _c.textSecondary,
-                  ),
-                ),
-              ),
-              if (trailing != null) ...[
-                trailing,
-              ] else if (badgeCount != null && badgeCount > 0) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? _c.linkAccent.withValues(alpha: 0.18)
-                        : _c.bgTertiary,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: _c.borderDefault.withValues(alpha: 0.08)),
-                  ),
-                  child: Text(
-                    '$badgeCount',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? _c.linkAccent : _c.textMuted,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }
