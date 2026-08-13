@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import '../logic.dart';
-import '../constants.dart';
 import '../i18n.dart';
 import '../utils.dart';
 import '../app_config.dart';
@@ -524,7 +523,13 @@ class _MainWindowState extends State<MainWindow>
       backgroundColor: _c.bgPrimary,
       body: Row(
         children: [
-          _buildSidebar(),
+          Sidebar(
+            logic: widget.logic,
+            isAdmin: _isAdmin,
+            activeTab: _activeTab,
+            onTabSelected: (tab) => setState(() => _activeTab = tab),
+            onToggleGuard: _toggleGuard,
+          ),
           VerticalDivider(
               width: 1, color: _c.borderDefault.withValues(alpha: 0.08)),
           Expanded(
@@ -537,224 +542,6 @@ class _MainWindowState extends State<MainWindow>
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: _buildMainContent(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Sidebar Navigation Panel ─────────────────────────────────────────────
-
-  Widget _buildSidebar() {
-    final clients = widget.logic.connectedClients;
-    final wl = widget.logic.whitelist;
-    final isGuardActive = widget.logic.isGuardActive;
-    final isTransparent = AppConfig.enableTransparency;
-
-    return Container(
-      width: 250,
-      color: isTransparent
-          ? _c.bgSecondary.withValues(alpha: 0.4)
-          : _c.bgSecondary,
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header branding
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isGuardActive
-                        ? _c.statusActive.withValues(alpha: 0.15)
-                        : _c.textMuted.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: isGuardActive
-                        ? [
-                            BoxShadow(
-                              color: _c.statusActive.withValues(alpha: 0.25),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            )
-                          ]
-                        : null,
-                  ),
-                  child: Icon(
-                    Icons.wifi_tethering,
-                    color: isGuardActive ? _c.statusActive : _c.textSecondary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'JA WiFi Guard',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: _c.textPrimary,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'v$appVersion',
-                        style: TextStyle(fontSize: 11, color: _c.textMuted),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Navigation Links
-          SidebarNavItem(
-            icon: Icons.devices,
-            label: _s.tabMonitor,
-            isSelected: _activeTab == 'MONITOR',
-            onTap: () => setState(() => _activeTab = 'MONITOR'),
-            badgeCount: clients.length,
-          ),
-          const SizedBox(height: 4),
-          SidebarNavItem(
-            icon: Icons.verified_user_outlined,
-            label: _s.tabWhitelist,
-            isSelected: _activeTab == 'WHITELIST',
-            onTap: () => setState(() => _activeTab = 'WHITELIST'),
-            badgeCount: wl.length,
-          ),
-          const SizedBox(height: 4),
-          SidebarNavItem(
-            icon: Icons.terminal_outlined,
-            label: _s.tabLogs,
-            isSelected: _activeTab == 'CONSOLE',
-            onTap: () => setState(() => _activeTab = 'CONSOLE'),
-            trailing: isGuardActive ? const BlinkingDot(size: 8.0) : null,
-          ),
-          const SizedBox(height: 4),
-          SidebarNavItem(
-            icon: Icons.wifi_tethering,
-            isSelected: _activeTab == 'HOTSPOT',
-            onTap: () => setState(() => _activeTab = 'HOTSPOT'),
-            label: widget.languageNotifier.language == AppLanguage.vi
-                ? 'Điểm phát sóng'
-                : widget.languageNotifier.language == AppLanguage.zh
-                    ? '移动热点'
-                    : 'Mobile Hotspot',
-          ),
-          const SizedBox(height: 4),
-          SidebarNavItem(
-            icon: Icons.settings_outlined,
-            label: 'Settings',
-            isSelected: _activeTab == 'SETTINGS',
-            onTap: () => setState(() => _activeTab = 'SETTINGS'),
-          ),
-
-          const Spacer(),
-
-          // Guard Activation Card
-          GlassCard(
-            padding: const EdgeInsets.all(14.0),
-            backgroundColor: _c.bgCard.withValues(alpha: 0.3),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Guard Engine',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _c.textSecondary),
-                    ),
-                    if (isGuardActive)
-                      const BlinkingDot(color: Color(0xFF34D399), size: 7.0)
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isGuardActive
-                            ? _c.statusActive.withValues(alpha: 0.12)
-                            : _c.statusRemoved.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isGuardActive
-                              ? _c.statusActive.withValues(alpha: 0.3)
-                              : _c.statusRemoved.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        isGuardActive ? 'SECURED' : 'STOPPED',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: isGuardActive
-                              ? _c.statusActive
-                              : _c.statusRemoved,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    Switch.adaptive(
-                      value: isGuardActive,
-                      onChanged: (_) => _toggleGuard(),
-                      activeThumbColor: _c.statusActive,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Admin Status Indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: _isAdmin
-                  ? _c.statusActive.withValues(alpha: 0.08)
-                  : _c.statusChanged.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: (_isAdmin ? _c.statusActive : _c.statusChanged)
-                    .withValues(alpha: 0.18),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _isAdmin ? Icons.shield : Icons.shield_outlined,
-                  size: 14,
-                  color: _isAdmin ? _c.statusActive : _c.statusChanged,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _isAdmin ? _s.labelAdmin : _s.labelStandard,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: _isAdmin ? _c.statusActive : _c.statusChanged,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
