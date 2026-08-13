@@ -152,6 +152,9 @@ class WifiGuardLogic extends ChangeNotifier {
   /// Initialize: check admin, load configurations
   Future<void> initialize() async {
     _logger.info('Initializing WifiGuardLogic...');
+    await writeLog(
+        'App launched${AppConfig.isDebugMode ? ' (-debug mode)' : ''}',
+        level: 'INFO');
     _checkIntervalSeconds = int.tryParse(
             AppConfig.get('check_interval_seconds', defaultValue: '5')) ??
         5;
