@@ -384,10 +384,9 @@ class _DebugClockBadge extends StatelessWidget {
         children: [
           Icon(Icons.bug_report_outlined, size: 12, color: c.statusChanged),
           const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
+          Expanded(
+            child: _PingPongMarquee(
+              text: label,
               style: TextStyle(
                 fontSize: 10,
                 fontFamily: 'Cascadia Code',
@@ -398,6 +397,77 @@ class _DebugClockBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Renders [text] centered if it fits; otherwise bounces it back and forth
+/// (ping-pong marquee) so the full content stays readable over time instead
+/// of being cut off with an ellipsis.
+class _PingPongMarquee extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _PingPongMarquee({required this.text, required this.style});
+
+  @override
+  State<_PingPongMarquee> createState() => _PingPongMarqueeState();
+}
+
+class _PingPongMarqueeState extends State<_PingPongMarquee>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _controller;
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textPainter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout();
+        final textWidth = textPainter.width;
+        final availableWidth = constraints.maxWidth;
+
+        if (textWidth <= availableWidth) {
+          _controller?.dispose();
+          _controller = null;
+          return Text(widget.text,
+              style: widget.style, maxLines: 1, textAlign: TextAlign.center);
+        }
+
+        final overflow = textWidth - availableWidth;
+        final durationMs = (overflow / 0.04).round().clamp(1500, 6000);
+        _controller ??= AnimationController(
+          vsync: this,
+          duration: Duration(milliseconds: durationMs),
+        )..repeat(reverse: true);
+
+        return ClipRect(
+          child: AnimatedBuilder(
+            animation: _controller!,
+            builder: (context, child) => Align(
+              alignment: Alignment.centerLeft,
+              child: Transform.translate(
+                offset: Offset(-overflow * _controller!.value, 0),
+                child: child,
+              ),
+            ),
+            child: SizedBox(
+              width: textWidth,
+              child: Text(widget.text,
+                  style: widget.style, maxLines: 1, softWrap: false),
+            ),
+          ),
+        );
+      },
     );
   }
 }
