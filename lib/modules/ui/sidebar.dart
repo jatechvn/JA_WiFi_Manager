@@ -401,9 +401,15 @@ class _DebugClockBadge extends StatelessWidget {
   }
 }
 
-/// Renders [text] centered if it fits; otherwise bounces it back and forth
-/// (ping-pong marquee) so the full content stays readable over time instead
-/// of being cut off with an ellipsis.
+/// Scrolls [text] back and forth (ping-pong) when it doesn't fit, so the
+/// full content stays readable over time instead of being cut off with an
+/// ellipsis. Built on SingleChildScrollView + ScrollController.animateTo
+/// (same pattern as JA_DUT_Info's _MarqueeText) rather than manually
+/// estimating text width — Flutter's own scroll-extent calculation is the
+/// one source of truth for how far the text actually extends, so there's
+/// no way for the measured/animated distance to diverge from what's really
+/// rendered (which is what caused the tail-clipping bug in an earlier,
+/// hand-measured version of this widget).
 class _PingPongMarquee extends StatefulWidget {
   final String text;
   final TextStyle style;
@@ -414,109 +420,57 @@ class _PingPongMarquee extends StatefulWidget {
   State<_PingPongMarquee> createState() => _PingPongMarqueeState();
 }
 
-class _PingPongMarqueeState extends State<_PingPongMarquee>
-    with SingleTickerProviderStateMixin {
-  final GlobalKey _textKey = GlobalKey();
-  AnimationController? _controller;
+class _PingPongMarqueeState extends State<_PingPongMarquee> {
+  final ScrollController _scrollController = ScrollController();
 
-  // Actual rendered width of the text, measured from the real RenderBox
-  // after layout — not estimated via a parallel TextPainter pass. A
-  // TextPainter estimate can silently diverge from what really gets
-  // painted (text scale factor, font-fallback metrics, kerning), which
-  // previously caused the tail of the string to stay clipped forever no
-  // matter how long the marquee ran, since the container was never
-  // actually wide enough to hold the full text to begin with.
-  double? _measuredWidth;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runLoop());
+  }
+
+  Future<void> _runLoop() async {
+    if (!mounted || !_scrollController.hasClients) return;
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final maxScrollExtent = _scrollController.position.maxScrollExtent;
+    if (maxScrollExtent <= 0) return; // fits already, nothing to scroll
+
+    final travelMs = (widget.text.length * 70).clamp(1200, 5000);
+    while (mounted) {
+      await _scrollController.animateTo(
+        maxScrollExtent,
+        duration: Duration(milliseconds: travelMs),
+        curve: Curves.linear,
+      );
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return;
+
+      await _scrollController.animateTo(
+        0,
+        duration: Duration(milliseconds: travelMs),
+        curve: Curves.linear,
+      );
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 1200));
+    }
+  }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scheduleMeasurement() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final box = _textKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize && box.size.width != _measuredWidth) {
-        setState(() => _measuredWidth = box.size.width);
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final availableWidth = constraints.maxWidth;
-        // Best-effort estimate for the very first frame, before the real
-        // measurement below has had a chance to run once.
-        final estimatedWidth = _measuredWidth ??
-            (TextPainter(
-              text: TextSpan(text: widget.text, style: widget.style),
-              textDirection: TextDirection.ltr,
-              textScaler: MediaQuery.textScalerOf(context),
-              maxLines: 1,
-            )..layout())
-                .width;
-
-        final textWidget = Text(
-          widget.text,
-          key: _textKey,
-          style: widget.style,
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.visible,
-        );
-        _scheduleMeasurement();
-
-        if (estimatedWidth <= availableWidth) {
-          _controller?.dispose();
-          _controller = null;
-          return Align(alignment: Alignment.center, child: textWidget);
-        }
-
-        final overflow = estimatedWidth - availableWidth;
-        // Travel time scales with distance; +1.2s covers the two holds
-        // added below so the full string pauses fully visible at each end
-        // instead of only ever being glimpsed mid-slide.
-        final travelMs = (overflow / 0.04).round().clamp(1200, 5000);
-        _controller ??= AnimationController(
-          vsync: this,
-          duration: Duration(milliseconds: travelMs + 1200),
-        )..repeat(reverse: true);
-
-        return ClipRect(
-          child: AnimatedBuilder(
-            animation: _controller!,
-            builder: (context, child) {
-              const hold = 0.18; // fraction of the cycle held at each end
-              final t = _controller!.value;
-              final travel = t <= hold
-                  ? 0.0
-                  : t >= 1 - hold
-                      ? 1.0
-                      : (t - hold) / (1 - 2 * hold);
-              return Align(
-                alignment: Alignment.centerLeft,
-                child: Transform.translate(
-                  offset: Offset(-overflow * travel, 0),
-                  child: child,
-                ),
-              );
-            },
-            // UnconstrainedBox always renders the child at its true
-            // natural size regardless of the tighter incoming
-            // constraints, so the text itself can never be internally
-            // clipped by a too-narrow container — only ClipRect above
-            // (sized to availableWidth) controls what's visible.
-            child: UnconstrainedBox(
-              alignment: Alignment.centerLeft,
-              child: textWidget,
-            ),
-          ),
-        );
-      },
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Text(widget.text, style: widget.style, maxLines: 1),
     );
   }
 }
