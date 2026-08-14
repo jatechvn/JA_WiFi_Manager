@@ -431,9 +431,13 @@ class _PingPongMarqueeState extends State<_PingPongMarquee>
         final textPainter = TextPainter(
           text: TextSpan(text: widget.text, style: widget.style),
           textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(context),
           maxLines: 1,
         )..layout();
-        final textWidth = textPainter.width;
+        // Small safety margin: sub-pixel/kerning rounding between this
+        // measurement pass and the real Text's RenderParagraph can leave
+        // the last character or two clipped otherwise.
+        final textWidth = textPainter.width + 4;
         final availableWidth = constraints.maxWidth;
 
         if (textWidth <= availableWidth) {
