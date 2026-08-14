@@ -655,7 +655,7 @@ class WifiGuardLogic extends ChangeNotifier {
         ));
       }
 
-      _connectedClients = currentClientsList;
+      _connectedClients = _dedupeByMac(currentClientsList);
       _statusMessage = 'Guard is active. Monitoring hotspot clients.';
       notifyListeners();
     } catch (e) {
@@ -776,22 +776,7 @@ class WifiGuardLogic extends ChangeNotifier {
         ));
       }
 
-      // Get-NetNeighbor reports one row per (IP, MAC) pair, so a single
-      // device shows up multiple times: once for its IPv6 link-local
-      // neighbor entry and once for its IPv4 entry, plus stale leftover
-      // IPv4 entries from a previous DHCP lease. Collapse to one row per
-      // MAC, keeping the most useful entry (IPv4 over IPv6, Reachable over
-      // Stale/Delay/Probe).
-      final Map<String, ClientDevice> deduped = {};
-      for (final client in list) {
-        final existing = deduped[client.mac];
-        if (existing == null ||
-            _neighborPriority(client) > _neighborPriority(existing)) {
-          deduped[client.mac] = client;
-        }
-      }
-
-      _connectedClients = deduped.values.toList();
+      _connectedClients = _dedupeByMac(list);
       notifyListeners();
     } catch (e) {
       _logger.warning('Scan connected clients failed: $e');
@@ -821,6 +806,26 @@ class WifiGuardLogic extends ChangeNotifier {
         stateScore = 0;
     }
     return (isIPv4 ? 100 : 0) + stateScore;
+  }
+
+  // Get-NetNeighbor reports one row per (IP, MAC) pair, so a single device
+  // shows up multiple times: once for its IPv6 link-local neighbor entry
+  // and once for its IPv4 entry, plus stale leftover IPv4 entries from a
+  // previous DHCP lease. Collapse to one row per MAC, keeping the most
+  // useful entry (IPv4 over IPv6, Reachable over Stale/Delay/Probe).
+  // Shared by every code path that builds the connected-clients list
+  // (scanConnectedClients + the periodic _runGuardCheck loop) so a fix
+  // here can't silently apply to only one of them again.
+  List<ClientDevice> _dedupeByMac(List<ClientDevice> list) {
+    final Map<String, ClientDevice> deduped = {};
+    for (final client in list) {
+      final existing = deduped[client.mac];
+      if (existing == null ||
+          _neighborPriority(client) > _neighborPriority(existing)) {
+        deduped[client.mac] = client;
+      }
+    }
+    return deduped.values.toList();
   }
 
   // ─── Log Management ───────────────────────────────────────────────────────
