@@ -416,7 +416,17 @@ class _PingPongMarquee extends StatefulWidget {
 
 class _PingPongMarqueeState extends State<_PingPongMarquee>
     with SingleTickerProviderStateMixin {
+  final GlobalKey _textKey = GlobalKey();
   AnimationController? _controller;
+
+  // Actual rendered width of the text, measured from the real RenderBox
+  // after layout — not estimated via a parallel TextPainter pass. A
+  // TextPainter estimate can silently diverge from what really gets
+  // painted (text scale factor, font-fallback metrics, kerning), which
+  // previously caused the tail of the string to stay clipped forever no
+  // matter how long the marquee ran, since the container was never
+  // actually wide enough to hold the full text to begin with.
+  double? _measuredWidth;
 
   @override
   void dispose() {
@@ -424,30 +434,49 @@ class _PingPongMarqueeState extends State<_PingPongMarquee>
     super.dispose();
   }
 
+  void _scheduleMeasurement() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _textKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize && box.size.width != _measuredWidth) {
+        setState(() => _measuredWidth = box.size.width);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final textPainter = TextPainter(
-          text: TextSpan(text: widget.text, style: widget.style),
-          textDirection: TextDirection.ltr,
-          textScaler: MediaQuery.textScalerOf(context),
-          maxLines: 1,
-        )..layout();
-        // Small safety margin: sub-pixel/kerning rounding between this
-        // measurement pass and the real Text's RenderParagraph can leave
-        // the last character or two clipped otherwise.
-        final textWidth = textPainter.width + 4;
         final availableWidth = constraints.maxWidth;
+        // Best-effort estimate for the very first frame, before the real
+        // measurement below has had a chance to run once.
+        final estimatedWidth = _measuredWidth ??
+            (TextPainter(
+              text: TextSpan(text: widget.text, style: widget.style),
+              textDirection: TextDirection.ltr,
+              textScaler: MediaQuery.textScalerOf(context),
+              maxLines: 1,
+            )..layout())
+                .width;
 
-        if (textWidth <= availableWidth) {
+        final textWidget = Text(
+          widget.text,
+          key: _textKey,
+          style: widget.style,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.visible,
+        );
+        _scheduleMeasurement();
+
+        if (estimatedWidth <= availableWidth) {
           _controller?.dispose();
           _controller = null;
-          return Text(widget.text,
-              style: widget.style, maxLines: 1, textAlign: TextAlign.center);
+          return Align(alignment: Alignment.center, child: textWidget);
         }
 
-        final overflow = textWidth - availableWidth;
+        final overflow = estimatedWidth - availableWidth;
         // Travel time scales with distance; +1.2s covers the two holds
         // added below so the full string pauses fully visible at each end
         // instead of only ever being glimpsed mid-slide.
@@ -476,10 +505,14 @@ class _PingPongMarqueeState extends State<_PingPongMarquee>
                 ),
               );
             },
-            child: SizedBox(
-              width: textWidth,
-              child: Text(widget.text,
-                  style: widget.style, maxLines: 1, softWrap: false),
+            // UnconstrainedBox always renders the child at its true
+            // natural size regardless of the tighter incoming
+            // constraints, so the text itself can never be internally
+            // clipped by a too-narrow container — only ClipRect above
+            // (sized to availableWidth) controls what's visible.
+            child: UnconstrainedBox(
+              alignment: Alignment.centerLeft,
+              child: textWidget,
             ),
           ),
         );
