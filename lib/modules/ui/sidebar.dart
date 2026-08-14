@@ -444,22 +444,34 @@ class _PingPongMarqueeState extends State<_PingPongMarquee>
         }
 
         final overflow = textWidth - availableWidth;
-        final durationMs = (overflow / 0.04).round().clamp(1500, 6000);
+        // Travel time scales with distance; +1.2s covers the two holds
+        // added below so the full string pauses fully visible at each end
+        // instead of only ever being glimpsed mid-slide.
+        final travelMs = (overflow / 0.04).round().clamp(1200, 5000);
         _controller ??= AnimationController(
           vsync: this,
-          duration: Duration(milliseconds: durationMs),
+          duration: Duration(milliseconds: travelMs + 1200),
         )..repeat(reverse: true);
 
         return ClipRect(
           child: AnimatedBuilder(
             animation: _controller!,
-            builder: (context, child) => Align(
-              alignment: Alignment.centerLeft,
-              child: Transform.translate(
-                offset: Offset(-overflow * _controller!.value, 0),
-                child: child,
-              ),
-            ),
+            builder: (context, child) {
+              const hold = 0.18; // fraction of the cycle held at each end
+              final t = _controller!.value;
+              final travel = t <= hold
+                  ? 0.0
+                  : t >= 1 - hold
+                      ? 1.0
+                      : (t - hold) / (1 - 2 * hold);
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Transform.translate(
+                  offset: Offset(-overflow * travel, 0),
+                  child: child,
+                ),
+              );
+            },
             child: SizedBox(
               width: textWidth,
               child: Text(widget.text,
