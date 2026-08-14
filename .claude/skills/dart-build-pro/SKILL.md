@@ -125,10 +125,72 @@ Ví dụ: `DEBUG · v2.4.0 (2026-08-11 14:27:38)`
 - `<build time>` là **thời điểm build ra binary**, KHÔNG PHẢI thời gian hiện tại (không dùng đồng hồ sống/ticking). Lấy từ mtime của artifact biên dịch AOT (`data/app.so` với Windows Release build), fallback về mtime của chính file `.exe` nếu không có `app.so` (ví dụ bản debug/JIT chạy qua `flutter run`).
 - Format thời gian: `yyyy-MM-dd HH:mm:ss` (không dùng ISO có chữ `T`/mili-giây ở badge này — ISO đầy đủ chỉ dùng cho log, xem mục 2).
 - Chỉ hiển thị khi app được khởi chạy với cờ `-debug` (ẩn hoàn toàn ở chế độ bình thường).
-- **Nếu chữ bị tràn khỏi khung badge** (thường xảy ra ở sidebar hẹp): dùng hiệu ứng **Bounce / Ping-Pong Marquee** (chữ trượt qua lại trái-phải liên tục, KHÔNG lặp một chiều kiểu marquee cổ điển, KHÔNG cắt bằng `TextOverflow.ellipsis`) để toàn bộ nội dung vẫn đọc được theo thời gian. Chỉ bật animation khi đo được text thực sự tràn (so `TextPainter` width với width khả dụng) — nếu vừa khung thì hiển thị tĩnh, không chạy animation thừa.
-- **Nên có khoảng dừng (hold) ở 2 đầu chu kỳ** (~15-20% mỗi đầu) thay vì trượt liên tục không ngừng — để chữ đứng yên đủ lâu ở trạng thái hiện đầy đủ, dễ đọc hơn là chỉ lướt qua.
-- **Bẫy dễ mắc phải khi đo `TextPainter`:** PHẢI truyền `textScaler: MediaQuery.textScalerOf(context)` khi tạo `TextPainter` để đo độ rộng chữ. Nếu bỏ qua, `TextPainter` mặc định không áp dụng hệ số phóng chữ hệ thống (text scale factor), trong khi `Text` widget thật thì có — nếu máy người dùng có Windows display scaling ≠ 100%, chữ thật sẽ render RỘNG HƠN số đo được, khiến khung chứa (`SizedBox`) bị dựng hẹp hơn thực tế và cắt mất đuôi chữ **vĩnh viễn** (không liên quan gì đến animation — chờ hết vòng chạy cũng không bao giờ hiện, vì khung chứa chưa bao giờ đủ rộng). Nên cộng thêm vài pixel dự phòng (~4px) cho sai số kerning/subpixel giữa lần đo và lần render thật.
-- **Hiệu năng:** animation này rất rẻ, không đáng lo — chỉ tồn tại khi `isDebugMode == true` (0 chi phí ở bản release thường) và chỉ tạo `AnimationController`/`Ticker` khi đo được chữ thực sự tràn khung. Dùng `AnimatedBuilder` với `child:` truyền sẵn để mỗi tick chỉ rebuild phần `Transform.translate` nhỏ (một phép dịch layer, không tính lại layout `Text`), không đụng tới phần còn lại của UI.
+- **Nếu chữ bị tràn khỏi khung badge** (thường xảy ra ở sidebar hẹp): dùng hiệu ứng **Bounce / Ping-Pong Marquee** (chữ trượt qua lại trái-phải liên tục, KHÔNG lặp một chiều kiểu marquee cổ điển, KHÔNG cắt bằng `TextOverflow.ellipsis`) để toàn bộ nội dung vẫn đọc được theo thời gian.
+
+**Cách triển khai chuẩn (đã kiểm chứng hoạt động đúng, KHÔNG tự đo width bằng tay):** dùng `SingleChildScrollView` + `ScrollController.animateTo()`, KHÔNG dùng `TextPainter`/`RenderBox`/`GlobalKey` để tự ước lượng độ rộng chữ rồi dựng `SizedBox`/`Transform.translate` thủ công — cách đo tay từng thử qua 2 lần (TextPainter đơn thuần, rồi TextPainter+textScaler, rồi cả đo RenderBox thật sau khi render) đều vẫn có trường hợp phần đuôi chữ bị cắt vĩnh viễn không rõ nguyên nhân trên máy thật, dù chạy hết animation. Lý do `SingleChildScrollView` đáng tin cậy hơn: `position.maxScrollExtent` do chính Flutter tính từ layout thật, không có phép đo song song nào có thể lệch khỏi những gì thực sự render ra.
+
+```dart
+class _PingPongMarquee extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  const _PingPongMarquee({required this.text, required this.style});
+
+  @override
+  State<_PingPongMarquee> createState() => _PingPongMarqueeState();
+}
+
+class _PingPongMarqueeState extends State<_PingPongMarquee> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runLoop());
+  }
+
+  Future<void> _runLoop() async {
+    if (!mounted || !_scrollController.hasClients) return;
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final maxScrollExtent = _scrollController.position.maxScrollExtent;
+    if (maxScrollExtent <= 0) return; // vừa khung, không cần chạy
+
+    final travelMs = (widget.text.length * 70).clamp(1200, 5000);
+    while (mounted) {
+      await _scrollController.animateTo(maxScrollExtent,
+          duration: Duration(milliseconds: travelMs), curve: Curves.linear);
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return;
+      await _scrollController.animateTo(0,
+          duration: Duration(milliseconds: travelMs), curve: Curves.linear);
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 1200));
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(), // chặn kéo tay
+      child: Text(widget.text, style: widget.style, maxLines: 1),
+    );
+  }
+}
+```
+
+- **Khoảng dừng (hold) ~1.2s ở 2 đầu chu kỳ** (trước khi bắt đầu, và giữa 2 lượt scroll qua lại) thay vì trượt liên tục không ngừng — để chữ đứng yên đủ lâu ở trạng thái hiện đầy đủ, dễ đọc hơn là chỉ lướt qua.
+- Nếu `maxScrollExtent <= 0` (chữ đã vừa khung) thì vòng lặp thoát ngay, chữ hiển thị tĩnh căn trái — không cần tự kiểm tra tràn/không tràn bằng cách nào khác trước đó.
+- **Hiệu năng:** rất rẻ, không đáng lo — badge chỉ tồn tại khi `isDebugMode == true` (0 chi phí ở bản release thường), và khi chữ vừa khung thì vòng lặp thoát ngay không có animation nào chạy cả. `SingleChildScrollView.animateTo()` dùng cơ chế animation nội bộ của Flutter, không cần tự quản lý `AnimationController`/`Ticker` riêng.
 
 ### 4. Lưu ý khi app tự nâng quyền Admin (self-elevation)
 Nếu app cần chạy quyền Administrator và tự relaunch bằng `Start-Process ... -Verb RunAs` (hoặc cơ chế tương đương), **PHẢI forward lại toàn bộ command-line args gốc** (bao gồm `-debug`) sang tiến trình elevated mới, ví dụ dùng `-ArgumentList`:
