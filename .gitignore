@@ -2,6 +2,7 @@
 .dart_tool/
 .packages
 build/
+.flutter-plugins-dependencies
 
 # Platform build outputs
 windows/flutter/ephemeral/
