@@ -50,11 +50,17 @@ void main(List<String> args) async {
       ? Colors.transparent
       : (isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC));
 
+  // Windows 10 draws a solid box behind caption text on a glass title bar.
+  // The native runner already creates that window with an empty caption;
+  // keep it empty here so window_manager does not write the name back.
+  // Windows 11 shows the app name. The taskbar still uses the executable name.
+  final windowTitle = isWindows11 ? '$appName  v$appVersion' : '';
+
   // Configure window options
   final windowOptions = WindowOptions(
     size: const Size(1280, 720),
     minimumSize: const Size(960, 540),
-    title: '$appName  v$appVersion',
+    title: windowTitle,
     backgroundColor: windowBgColor,
     titleBarStyle: TitleBarStyle.normal,
   );

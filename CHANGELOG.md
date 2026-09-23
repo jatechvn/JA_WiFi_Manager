@@ -9,12 +9,14 @@ All notable changes to **JA WiFi Hotspot Guard** will be documented in this file
 - **Ngôn ngữ và giao diện theo Windows:** lần chạy đầu dùng ngôn ngữ giao diện Windows (`vi` / `zh` / `en`) và chế độ Auto bám sáng/tối của hệ thống.
 
 ### 🐛 Sửa lỗi & Tối ưu hóa
+- **Thanh tiêu đề Windows 10:** giải quyết triệt để lỗi Windows 10 vẽ hộp chữ đen đặc sau tên ứng dụng trên thanh tiêu đề mica/glass; ẩn caption text native trên Windows 10 để giữ thanh tiêu đề trong suốt hoàn hảo.
 - **Đóng cửa sổ không còn treo:** không gọi `destroy()` khi Windows vẫn chặn đóng, và lệnh dọn firewall lúc thoát bị giới hạn 3 giây.
 - **Header:** bỏ ô tìm kiếm thừa; tiêu đề tab đi qua `AppStrings`.
 - **Thanh lọc Monitor:** tooltip Xóa tìm kiếm, Xem thẻ, Xem bảng đủ Việt / Anh / Trung.
 
 ### 📦 Phát hành
-- Đồng bộ version 1.1.8+10 trong pubspec.yaml và constants.dart.
+- Đồng bộ version 1.1.8+10 trong pubspec.yaml, constants.dart, Runner.rc, ABOUT.txt, README.md, USERGUIDE.md, RELEASE_NOTES.md.
+- Đóng gói bản phát hành di động chuẩn Windows x64 kèm mã băm xác thực SHA256SUMS.txt.
 
 ## [v1.1.7] - 2026-09-21
 

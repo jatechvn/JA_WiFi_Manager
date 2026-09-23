@@ -172,7 +172,7 @@ Whitelisted devices are stored separately in `whitelist.json`, exportable/import
 
 Refer to [CHANGELOG.md](CHANGELOG.md) for full version history details.
 
-- **v1.1.8:** Denser Bento layout, Windows language and Auto theme on first launch, close-window hang fix, and localized header titles plus monitor filter tooltips.
+- **v1.1.8:** Denser Bento layout, Windows language and Auto theme on first launch, Windows 10 glass title bar caption fix, close-window hang fix, and localized header titles plus monitor filter tooltips.
 - **v1.1.7:** Added forceful PID-kill ICS repair troubleshooter, automated log rotation and file pruning (<1MB guard), standardized release build scripts (`build.bat`, `build.sh`, `run.sh`), `LICENSE`, and multi-language documentation (`i18n/`).
 - **v1.1.6:** Fixed duplicate MAC rows in Monitor, added `-debug` launch mode with a build-time debug badge (bounce/ping-pong marquee for overflow text), fixed `-debug` being dropped during admin self-elevation, and reworked the theme toggle to default to the system theme.
 
