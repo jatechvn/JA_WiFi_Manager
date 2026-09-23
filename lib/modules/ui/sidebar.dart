@@ -8,6 +8,7 @@ import '../logic.dart';
 import '../constants.dart';
 import '../i18n.dart';
 import '../app_config.dart';
+import '../services/ota_update_service.dart';
 import 'styles.dart';
 
 class Sidebar extends StatelessWidget {
@@ -16,6 +17,8 @@ class Sidebar extends StatelessWidget {
   final String activeTab;
   final ValueChanged<String> onTabSelected;
   final VoidCallback onToggleGuard;
+  final UpdatePackageInfo? availableUpdate;
+  final VoidCallback? onOpenUpdateDialog;
 
   const Sidebar({
     super.key,
@@ -24,6 +27,8 @@ class Sidebar extends StatelessWidget {
     required this.activeTab,
     required this.onTabSelected,
     required this.onToggleGuard,
+    this.availableUpdate,
+    this.onOpenUpdateDialog,
   });
 
   @override
@@ -36,31 +41,30 @@ class Sidebar extends StatelessWidget {
     final isTransparent = AppConfig.enableTransparency;
 
     return Container(
-      width: 250,
+      width: 220,
       color:
           isTransparent ? c.bgSecondary.withValues(alpha: 0.4) : c.bgSecondary,
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header branding
           Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: isGuardActive
                         ? c.statusActive.withValues(alpha: 0.15)
                         : c.textMuted.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(9),
                     boxShadow: isGuardActive
                         ? [
                             BoxShadow(
                               color: c.statusActive.withValues(alpha: 0.25),
-                              blurRadius: 10,
+                              blurRadius: 8,
                               spreadRadius: 1,
                             )
                           ]
@@ -69,10 +73,10 @@ class Sidebar extends StatelessWidget {
                   child: Icon(
                     Icons.wifi_tethering,
                     color: isGuardActive ? c.statusActive : c.textSecondary,
-                    size: 24,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,16 +84,62 @@ class Sidebar extends StatelessWidget {
                       Text(
                         'JA WiFi Guard',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                           color: c.textPrimary,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.4,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'v$appVersion',
-                        style: TextStyle(fontSize: 11, color: c.textMuted),
+                      const SizedBox(height: 1),
+                      Row(
+                        children: [
+                          Text(
+                            'v$appVersion',
+                            style:
+                                TextStyle(fontSize: 10.5, color: c.textMuted),
+                          ),
+                          if (availableUpdate != null) ...[
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: onOpenUpdateDialog,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color:
+                                      c.accentEmerald.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: c.accentEmerald
+                                          .withValues(alpha: 0.4)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        color: c.accentEmerald,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      availableUpdate!.version.displayVersion,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: c.accentEmerald,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -97,7 +147,7 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
 
           // Navigation Links
           SidebarNavItem(
@@ -107,7 +157,7 @@ class Sidebar extends StatelessWidget {
             onTap: () => onTabSelected('MONITOR'),
             badgeCount: clients.length,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           SidebarNavItem(
             icon: Icons.verified_user_outlined,
             label: s.tabWhitelist,
@@ -115,15 +165,15 @@ class Sidebar extends StatelessWidget {
             onTap: () => onTabSelected('WHITELIST'),
             badgeCount: wl.length,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           SidebarNavItem(
             icon: Icons.terminal_outlined,
             label: s.tabLogs,
             isSelected: activeTab == 'CONSOLE',
             onTap: () => onTabSelected('CONSOLE'),
-            trailing: isGuardActive ? const BlinkingDot(size: 8.0) : null,
+            trailing: isGuardActive ? const BlinkingDot(size: 7.0) : null,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           SidebarNavItem(
             icon: Icons.wifi_tethering,
             isSelected: activeTab == 'HOTSPOT',
@@ -134,7 +184,7 @@ class Sidebar extends StatelessWidget {
                     ? '移动热点'
                     : 'Mobile Hotspot',
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           SidebarNavItem(
             icon: Icons.settings_outlined,
             label: 'Settings',
@@ -144,82 +194,136 @@ class Sidebar extends StatelessWidget {
 
           const Spacer(),
 
-          // Guard Activation Card
-          GlassCard(
-            padding: const EdgeInsets.all(14.0),
-            backgroundColor: c.bgCard.withValues(alpha: 0.3),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Available Update Quick Banner
+          if (availableUpdate != null) ...[
+            InkWell(
+              onTap: onOpenUpdateDialog,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: c.accentEmerald.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: c.accentEmerald.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      'Guard Engine',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: c.textSecondary),
+                    Icon(
+                      Icons.system_update_alt_rounded,
+                      size: 15,
+                      color: c.accentEmerald,
                     ),
-                    if (isGuardActive)
-                      const BlinkingDot(color: Color(0xFF34D399), size: 7.0)
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Có bản cập nhật',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: c.accentEmerald,
+                            ),
+                          ),
+                          Text(
+                            availableUpdate!.version.displayVersion,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              color: c.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 10,
+                      color: c.accentEmerald,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isGuardActive
-                            ? c.statusActive.withValues(alpha: 0.12)
-                            : c.statusRemoved.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isGuardActive
-                              ? c.statusActive.withValues(alpha: 0.3)
-                              : c.statusRemoved.withValues(alpha: 0.3),
+              ),
+            ),
+          ],
+
+          // Compact Guard Engine Strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: c.bgCard.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isGuardActive
+                    ? c.statusActive.withValues(alpha: 0.3)
+                    : c.borderDefault.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isGuardActive ? Icons.shield_rounded : Icons.shield_outlined,
+                  size: 18,
+                  color: isGuardActive ? c.statusActive : c.textMuted,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Guard Engine',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: c.textPrimary,
                         ),
                       ),
-                      child: Text(
+                      Text(
                         isGuardActive ? 'SECURED' : 'STOPPED',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
                           color:
                               isGuardActive ? c.statusActive : c.statusRemoved,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.4,
                         ),
                       ),
-                    ),
-                    Switch.adaptive(
-                      value: isGuardActive,
-                      onChanged: (_) => onToggleGuard(),
-                      activeThumbColor: c.statusActive,
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch.adaptive(
+                    value: isGuardActive,
+                    onChanged: (_) => onToggleGuard(),
+                    activeThumbColor: c.statusActive,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Live debug timestamp — only shown when launched with -debug
           if (AppConfig.isDebugMode) ...[
             const _DebugClockBadge(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
           ],
 
           // Admin Status Indicator
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: isAdmin
                   ? c.statusActive.withValues(alpha: 0.08)
                   : c.statusChanged.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: (isAdmin ? c.statusActive : c.statusChanged)
                     .withValues(alpha: 0.18),
@@ -228,15 +332,15 @@ class Sidebar extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  isAdmin ? Icons.shield : Icons.shield_outlined,
-                  size: 14,
+                  isAdmin ? Icons.verified_user_rounded : Icons.shield_outlined,
+                  size: 13,
                   color: isAdmin ? c.statusActive : c.statusChanged,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   isAdmin ? s.labelAdmin : s.labelStandard,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: isAdmin ? c.statusActive : c.statusChanged,
                     fontWeight: FontWeight.w700,
                   ),
@@ -275,29 +379,29 @@ class SidebarNavItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: isSelected
                 ? c.linkAccent.withValues(alpha: 0.12)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
               Icon(
                 icon,
-                size: 20,
+                size: 18,
                 color: isSelected ? c.linkAccent : c.textSecondary,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     color: isSelected ? c.textPrimary : c.textSecondary,
                   ),

@@ -74,6 +74,18 @@ class AppColors {
   final Color statusChanged;
   final Brightness brightness;
 
+  // Bento Glass Tokens
+  final Color cardBg;
+  final Color cardHoverBg;
+  final Color subCardBg;
+  final Color subCardBorder;
+  final Color glassHighlight;
+  final Color accentCyan;
+  final Color accentEmerald;
+  final Color accentAmber;
+  final Color accentRose;
+  final Color accentPurple;
+
   const AppColors({
     required this.bgPrimary,
     required this.bgSecondary,
@@ -91,7 +103,32 @@ class AppColors {
     required this.statusRemoved,
     required this.statusChanged,
     required this.brightness,
-  });
+    Color? cardBg,
+    Color? cardHoverBg,
+    Color? subCardBg,
+    Color? subCardBorder,
+    Color? glassHighlight,
+    Color? accentCyan,
+    Color? accentEmerald,
+    Color? accentAmber,
+    Color? accentRose,
+    Color? accentPurple,
+  })  : cardBg = cardBg ?? bgCard,
+        cardHoverBg = cardHoverBg ?? bgHover,
+        subCardBg = subCardBg ?? bgTertiary,
+        subCardBorder = subCardBorder ?? borderDefault,
+        glassHighlight = glassHighlight ??
+            (brightness == Brightness.dark
+                ? const Color(0x33FFFFFF)
+                : const Color(0x80FFFFFF)),
+        accentCyan = accentCyan ?? linkAccent,
+        accentEmerald = accentEmerald ?? statusActive,
+        accentAmber = accentAmber ?? statusChanged,
+        accentRose = accentRose ?? statusRemoved,
+        accentPurple = accentPurple ??
+            (brightness == Brightness.dark
+                ? const Color(0xFFC084FC)
+                : const Color(0xFF8B5CF6));
 
   // Dark theme colors (transparent for blur) - dynamic dispatch by Windows version
   static AppColors get dark =>
@@ -120,6 +157,16 @@ class AppColors {
       statusRemoved: statusRemoved,
       statusChanged: statusChanged,
       brightness: brightness,
+      cardBg: cardBg.withOpacity(1.0),
+      cardHoverBg: cardHoverBg,
+      subCardBg: subCardBg.withOpacity(1.0),
+      subCardBorder: subCardBorder,
+      glassHighlight: glassHighlight,
+      accentCyan: accentCyan,
+      accentEmerald: accentEmerald,
+      accentAmber: accentAmber,
+      accentRose: accentRose,
+      accentPurple: accentPurple,
     );
   }
 
@@ -201,20 +248,26 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Toggles between light and dark only — no "auto" stop, since the
-  /// initial mode is already seeded from Windows' current theme
-  /// (see AppConfig._systemDefaultTheme). A leftover 'auto' preference from
-  /// before this change resolves to dark on the first toggle.
+  /// Cycles Auto (follow Windows) → Dark → Light.
   void toggle(Brightness platformBrightness) {
     switch (_mode) {
+      case AppThemeMode.auto:
+        setMode(AppThemeMode.dark, platformBrightness);
+        break;
       case AppThemeMode.dark:
         setMode(AppThemeMode.light, platformBrightness);
         break;
       case AppThemeMode.light:
-      case AppThemeMode.auto:
-        setMode(AppThemeMode.dark, platformBrightness);
+        setMode(AppThemeMode.auto, platformBrightness);
         break;
     }
+  }
+
+  /// Keeps Auto mode aligned when Windows itself switches light/dark.
+  void handlePlatformBrightness(Brightness platformBrightness) {
+    if (_mode != AppThemeMode.auto) return;
+    _updateColors(platformBrightness);
+    notifyListeners();
   }
 
   IconData get modeIcon {

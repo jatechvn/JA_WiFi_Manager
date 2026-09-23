@@ -1,28 +1,32 @@
 // lib/modules/ui/header_bar.dart
-// Top header bar: tab title, search box, refresh/theme/language controls.
+// Top header bar: tab title, refresh, theme, and language controls.
+// Search lives on each tab, not in this bar.
 
 import 'package:flutter/material.dart';
 import '../logic.dart';
 import '../i18n.dart';
 import '../app_config.dart';
+import '../services/ota_update_service.dart';
 import 'styles.dart';
 
 class HeaderBar extends StatelessWidget {
   final WifiGuardLogic logic;
   final ThemeNotifier themeNotifier;
   final String activeTab;
-  final TextEditingController searchController;
   final GlobalKey themeButtonKey;
   final VoidCallback onDataRefreshed;
+  final UpdatePackageInfo? availableUpdate;
+  final VoidCallback? onOpenUpdateDialog;
 
   const HeaderBar({
     super.key,
     required this.logic,
     required this.themeNotifier,
     required this.activeTab,
-    required this.searchController,
     required this.themeButtonKey,
     required this.onDataRefreshed,
+    this.availableUpdate,
+    this.onOpenUpdateDialog,
   });
 
   ButtonStyle _iconBtnStyle(AppColors c) => IconButton.styleFrom(
@@ -50,21 +54,15 @@ class HeaderBar extends StatelessWidget {
     final s = context.strings;
     final languageNotifier = context.languageNotifier;
 
-    String tabTitle = 'Monitor';
-    if (activeTab == 'WHITELIST') tabTitle = 'Whitelist Manager';
-    if (activeTab == 'CONSOLE') tabTitle = 'Console Terminal';
-    if (activeTab == 'HOTSPOT') {
-      tabTitle = languageNotifier.language == AppLanguage.vi
-          ? 'Cấu hình Hotspot'
-          : languageNotifier.language == AppLanguage.zh
-              ? '热点配置'
-              : 'Mobile Hotspot';
-    }
-    if (activeTab == 'SETTINGS') tabTitle = 'Global Settings';
+    String tabTitle = s.tabTitleMonitor;
+    if (activeTab == 'WHITELIST') tabTitle = s.tabTitleWhitelist;
+    if (activeTab == 'CONSOLE') tabTitle = s.tabTitleConsole;
+    if (activeTab == 'HOTSPOT') tabTitle = s.tabTitleHotspot;
+    if (activeTab == 'SETTINGS') tabTitle = s.tabTitleSettings;
     final isTransparent = AppConfig.enableTransparency;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       color:
           isTransparent ? c.bgSecondary.withValues(alpha: 0.1) : c.bgSecondary,
       child: Row(
@@ -73,51 +71,11 @@ class HeaderBar extends StatelessWidget {
           Text(
             tabTitle,
             style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: c.textPrimary),
           ),
           const Spacer(),
-
-          // Search Box (only on Monitor & Whitelist tabs)
-          if (activeTab == 'MONITOR' || activeTab == 'WHITELIST') ...[
-            Container(
-              width: 260,
-              height: 36,
-              margin: const EdgeInsets.only(right: 12),
-              child: TextFormField(
-                controller: searchController,
-                style: TextStyle(color: c.textPrimary, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Search MAC, IP...',
-                  prefixIcon: Icon(Icons.search, size: 16, color: c.textMuted),
-                  suffixIcon: searchController.text.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () {
-                            searchController.clear();
-                            logic.setSearchQuery('');
-                          },
-                          child:
-                              Icon(Icons.clear, size: 16, color: c.textMuted),
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: c.bgTertiary.withValues(alpha: 0.4),
-                  contentPadding: EdgeInsets.zero,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(
-                        color: c.borderDefault.withValues(alpha: 0.15)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(
-                        color: c.linkAccent.withValues(alpha: 0.8), width: 1.5),
-                  ),
-                ),
-              ),
-            ),
-          ],
 
           // Refresh button
           if (activeTab == 'MONITOR' || activeTab == 'WHITELIST') ...[
@@ -131,6 +89,29 @@ class HeaderBar extends StatelessWidget {
                 },
                 icon: Icon(Icons.refresh, color: c.textSecondary, size: 18),
                 style: _iconBtnStyle(c),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          // OTA Update available button
+          if (availableUpdate != null) ...[
+            Tooltip(
+              message:
+                  s.otaUpdateAvailable(availableUpdate!.version.displayVersion),
+              child: IconButton(
+                onPressed: onOpenUpdateDialog,
+                icon: const Icon(Icons.system_update_alt_rounded, size: 18),
+                color: c.accentEmerald,
+                style: IconButton.styleFrom(
+                  backgroundColor: c.accentEmerald.withValues(alpha: 0.15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    side: BorderSide(
+                      color: c.accentEmerald.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),

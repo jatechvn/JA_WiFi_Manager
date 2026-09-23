@@ -1,7 +1,7 @@
 name: ja_wifi_manager
 description: JA WiFi Hotspot Guard - Windows Desktop App for managing Mobile Hotspot whitelisting
 publish_to: 'none'
-version: 1.1.6+8
+version: 1.1.8+10
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

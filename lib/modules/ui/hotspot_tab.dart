@@ -1,14 +1,12 @@
 // lib/modules/ui/hotspot_tab.dart
-// Hotspot tab: Windows Mobile Hotspot status and Wi-Fi configuration form.
-//
-// Self-contained StatefulWidget — owns its form/loading/controller state and
-// syncs from WifiGuardLogic.hotspotConfig itself (via its own listener),
-// since none of that state is read anywhere outside this tab.
+// Hotspot tab: Windows Mobile Hotspot status and Wi-Fi configuration form with Bento Glassmorphic UI.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../logic.dart';
 import '../i18n.dart';
 import 'styles.dart';
+import 'bento_widgets.dart';
 
 class HotspotTab extends StatefulWidget {
   final WifiGuardLogic logic;
@@ -32,9 +30,11 @@ class _HotspotTabState extends State<HotspotTab> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _maxClientsController = TextEditingController();
   String _selectedBand = 'Auto';
-  bool _isLoading = false;
+  bool _isToggling = false;
+  bool _isSaving = false;
   bool _obscurePassword = true;
   bool _isFixingDhcp = false;
+  bool _isFixingIcs = false;
 
   @override
   void initState() {
@@ -79,72 +79,18 @@ class _HotspotTabState extends State<HotspotTab> {
   Widget build(BuildContext context) {
     final c = context.appColors;
     final s = context.strings;
-    final lang = context.languageNotifier.language;
     final config = widget.logic.hotspotConfig;
 
-    final isVi = lang == AppLanguage.vi;
-    final isZh = lang == AppLanguage.zh;
-
-    final titleStatus = isVi
-        ? 'Trạng thái phát sóng'
-        : isZh
-            ? '热点运行状态'
-            : 'Mobile Hotspot Status';
-    final titleConfig = isVi
-        ? 'Cấu hình mạng Wi-Fi'
-        : isZh
-            ? '无线网络配置'
-            : 'Wi-Fi Network Configuration';
-    final labelSwitch = isVi
-        ? 'Bật điểm phát sóng'
-        : isZh
-            ? '开启移动热点'
-            : 'Enable Mobile Hotspot';
-    final labelSsid = isVi
-        ? 'Tên Wi-Fi (SSID)'
-        : isZh
-            ? '网络名称 (SSID)'
-            : 'Network Name (SSID)';
-    final labelPassphrase = isVi
-        ? 'Mật khẩu Wi-Fi'
-        : isZh
-            ? '网络密码 (WPA2)'
-            : 'Network Password (WPA2)';
-    final labelBand = isVi
-        ? 'Băng tần'
-        : isZh
-            ? '网络频段'
-            : 'Network Band';
-    final labelSave = isVi
-        ? 'Lưu cấu hình'
-        : isZh
-            ? '保存设置'
-            : 'Save Configuration';
-    final msgUpdating = isVi
-        ? 'Đang cập nhật cấu hình...'
-        : isZh
-            ? '正在更新配置...'
-            : 'Updating hotspot settings...';
-    final msgSuccess = isVi
-        ? 'Đã cập nhật cấu hình hotspot!'
-        : isZh
-            ? '热点配置更新成功!'
-            : 'Hotspot settings updated successfully!';
-    final msgError = isVi
-        ? 'Cập nhật thất bại!'
-        : isZh
-            ? '更新失败!'
-            : 'Failed to update settings!';
-    final noteText = isVi
-        ? 'Lưu ý: Tính năng này thay đổi trực tiếp cấu hình Mobile Hotspot mặc định của Windows. Bạn có thể thay đổi giới hạn số thiết bị tối đa (mặc định là 8, yêu cầu quyền Administrator và có thể cần bật/tắt lại Hotspot).'
-        : isZh
-            ? '注意: 此功能将直接修改 Windows 默认的移动热点配置。您可以修改最大连接数限制（默认为 8，需管理员权限，可能需要重新开关热点生效）。'
-            : 'Note: This feature configures the default Windows Mobile Hotspot. You can change the maximum client limit (default is 8, requires Administrator permissions, and may require toggling the Hotspot to apply).';
-    final labelMaxClients = isVi
-        ? 'Giới hạn kết nối (1-128)'
-        : isZh
-            ? '连接限制数 (1-128)'
-            : 'Max Clients Limit (1-128)';
+    final titleConfig = s.hotspotConfigTitle;
+    final labelSsid = s.hotspotSsidLabel;
+    final labelPassphrase = s.hotspotPasswordLabel;
+    final labelBand = s.hotspotBandLabel;
+    final labelSave = s.hotspotSave;
+    final msgUpdating = s.hotspotUpdating;
+    final msgSuccess = s.hotspotUpdated;
+    final msgError = s.hotspotUpdateFailed;
+    final noteText = s.hotspotNote;
+    final labelMaxClients = s.hotspotMaxClients;
 
     if (config == null) {
       return Center(
@@ -154,11 +100,7 @@ class _HotspotTabState extends State<HotspotTab> {
             CircularProgressIndicator(color: c.linkAccent),
             const SizedBox(height: 16),
             Text(
-              isVi
-                  ? 'Đang tải thông tin Hotspot...'
-                  : isZh
-                      ? '正在获取热点配置...'
-                      : 'Loading Hotspot configurations...',
+              s.hotspotLoading,
               style: TextStyle(color: c.textMuted, fontSize: 13),
             ),
           ],
@@ -174,286 +116,425 @@ class _HotspotTabState extends State<HotspotTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Row for Status and Info
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Turn On/Off Switch Card
-                Expanded(
-                  child: GlassCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        StyledWidgets.sectionHeader(titleStatus, c,
-                            icon: Icons.sensors),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // 1. Hero Hotspot Status Banner Bento Card
+            BentoCard(
+              colors: c,
+              isFeatured: isHotspotOn,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      // Sóng Wi-Fi Icon Box
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: isHotspotOn
+                              ? c.accentEmerald.withValues(alpha: 0.15)
+                              : c.subCardBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isHotspotOn
+                                ? c.accentEmerald.withValues(alpha: 0.4)
+                                : c.borderDefault,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.wifi_tethering_rounded,
+                          size: 20,
+                          color: isHotspotOn ? c.accentEmerald : c.textMuted,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Hotspot State & Name
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
                               children: [
-                                Text(
-                                  labelSwitch,
-                                  style: TextStyle(
-                                      fontSize: 13,
+                                Flexible(
+                                  child: Text(
+                                    config.ssid.isNotEmpty
+                                        ? config.ssid
+                                        : s.hotspotDefaultName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.bold,
                                       color: c.textPrimary,
-                                      fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: isHotspotOn
-                                            ? c.statusActive
-                                            : c.statusRemoved,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      config.state.toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isHotspotOn
-                                            ? c.statusActive
-                                            : c.statusRemoved,
-                                      ),
-                                    ),
-                                  ],
+                                const SizedBox(width: 8),
+                                PillBadge(
+                                  label: isHotspotOn ? 'ONLINE' : 'STOPPED',
+                                  color: isHotspotOn
+                                      ? c.accentEmerald
+                                      : c.accentRose,
+                                  bg: (isHotspotOn
+                                          ? c.accentEmerald
+                                          : c.accentRose)
+                                      .withValues(alpha: 0.12),
+                                  border: (isHotspotOn
+                                          ? c.accentEmerald
+                                          : c.accentRose)
+                                      .withValues(alpha: 0.3),
+                                  showDot: true,
+                                  fontSize: 9.5,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                ),
+                                const SizedBox(width: 6),
+                                PillBadge(
+                                  label: _formatBandLabel(config.band),
+                                  color: c.linkAccent,
+                                  bg: c.linkAccent.withValues(alpha: 0.10),
+                                  border: c.linkAccent.withValues(alpha: 0.25),
+                                  fontSize: 9.5,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
                                 ),
                               ],
                             ),
-                            _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : Switch.adaptive(
-                                    value: isHotspotOn,
-                                    activeThumbColor: c.statusActive,
-                                    onChanged: (val) async {
-                                      setState(() => _isLoading = true);
-                                      final ok = await widget.logic
-                                          .setHotspotState(val);
-                                      setState(() => _isLoading = false);
-                                      if (ok) {
-                                        widget.onSnackbar(isVi
-                                            ? 'Đã chuyển đổi trạng thái hotspot'
-                                            : 'Hotspot state changed');
-                                      } else {
-                                        widget.onSnackbar(
-                                            isVi
-                                                ? 'Chuyển đổi thất bại!'
-                                                : 'Failed to toggle hotspot!',
-                                            isError: true);
-                                      }
-                                    },
-                                  ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                            const SizedBox(height: 2),
                             Text(
-                              isVi
-                                  ? 'Cấp phát IP (DHCP)'
-                                  : isZh
-                                      ? 'DHCP 客户端'
-                                      : 'DHCP Clients',
+                              isHotspotOn
+                                  ? s.hotspotBroadcasting
+                                  : s.hotspotStoppedHint,
                               style: TextStyle(
-                                  fontSize: 12,
-                                  color: c.textSecondary,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            Text(
-                              '${config.clientCount} / ${config.maxClients}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: c.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Cascadia Code',
+                                fontSize: 11,
+                                color:
+                                    isHotspotOn ? c.textSecondary : c.textMuted,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                      ),
+
+                      // Toggle Switch with Loading Indicator
+                      _isToggling
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Transform.scale(
+                              scale: 0.9,
+                              child: Switch(
+                                value: isHotspotOn,
+                                activeThumbColor: c.statusActive,
+                                onChanged: (val) async {
+                                  setState(() => _isToggling = true);
+                                  final ok =
+                                      await widget.logic.setHotspotState(val);
+                                  if (!mounted) return;
+                                  setState(() => _isToggling = false);
+                                  if (ok) {
+                                    widget.onSnackbar(s.hotspotToggled);
+                                  } else {
+                                    widget.onSnackbar(
+                                      s.hotspotToggleFailed,
+                                      isError: true,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                    ],
+                  ),
+                  const Divider(height: 14),
+
+                  // Quick Action Buttons Row
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // Fix ICS button
+                      OutlinedButton.icon(
+                        onPressed: _isFixingIcs
+                            ? null
+                            : () async {
+                                setState(() => _isFixingIcs = true);
+                                widget.onSnackbar(s.hotspotIcsWorking);
+                                final ok =
+                                    await widget.logic.repairIcsService();
+                                if (!mounted) return;
+                                setState(() => _isFixingIcs = false);
+                                if (ok) {
+                                  widget.onSnackbar(s.hotspotIcsOk);
+                                } else {
+                                  widget.onSnackbar(
+                                    s.hotspotIcsFailed,
+                                    isError: true,
+                                  );
+                                }
+                              },
+                        icon: _isFixingIcs
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(Icons.build_circle_rounded,
+                                size: 15, color: c.statusChanged),
+                        label: Text(
+                          s.hotspotFixIcs,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: c.statusChanged,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: c.statusChanged.withValues(alpha: 0.4),
+                          ),
+                          backgroundColor:
+                              c.statusChanged.withValues(alpha: 0.08),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Fix DHCP button
+                      OutlinedButton.icon(
+                        onPressed: _isFixingDhcp
+                            ? null
+                            : () async {
+                                setState(() => _isFixingDhcp = true);
+                                widget.onSnackbar(s.hotspotDhcpWorking);
+                                final ok = await widget.logic.fixHotspotDhcp();
+                                if (!mounted) return;
+                                setState(() => _isFixingDhcp = false);
+                                if (ok) {
+                                  widget.onSnackbar(s.hotspotDhcpOk);
+                                } else {
+                                  widget.onSnackbar(
+                                    s.hotspotDhcpFailed,
+                                    isError: true,
+                                  );
+                                }
+                              },
+                        icon: _isFixingDhcp
+                            ? const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(Icons.restart_alt_rounded,
+                                size: 14, color: c.linkAccent),
+                        label: Text(
+                          s.hotspotFixDhcp,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: c.linkAccent,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: c.linkAccent.withValues(alpha: 0.4),
+                          ),
+                          backgroundColor: c.linkAccent.withValues(alpha: 0.08),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // View Monitor Detail link
+                      InkWell(
+                        onTap: () => widget.onNavigateToTab('MONITOR'),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: c.subCardBg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: c.borderDefault),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.monitor_heart_rounded,
+                                  size: 13, color: c.linkAccent),
+                              const SizedBox(width: 5),
+                              Text(
+                                s.hotspotOpenMonitor,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: c.linkAccent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // 2. Bento Stat Cards Row
+            Row(
+              children: [
+                Expanded(
+                  child: BentoCard(
+                    colors: c,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              isVi
-                                  ? 'Quét thực tế (ARP)'
-                                  : isZh
-                                      ? '活动扫描 (ARP)'
-                                      : 'Active Scan (ARP)',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: c.textSecondary,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  '${widget.logic.connectedClients.length}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: c.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Cascadia Code',
-                                  ),
+                            Flexible(
+                              child: Text(
+                                s.hotspotDhcpClients,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: c.textMuted,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: () =>
-                                      widget.onNavigateToTab('MONITOR'),
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          c.linkAccent.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                          color: c.linkAccent
-                                              .withValues(alpha: 0.3)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.visibility_outlined,
-                                            size: 12, color: c.linkAccent),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isVi
-                                              ? 'Xem chi tiết'
-                                              : isZh
-                                                  ? '查看详情'
-                                                  : 'View Details',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: c.linkAccent,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
+                            Icon(Icons.router_rounded,
+                                size: 14, color: c.linkAccent),
                           ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${config.clientCount} / ${config.maxClients}',
+                          style: TextStyle(
+                            fontFamily: 'Cascadia Code',
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          s.hotspotLeases,
+                          style: TextStyle(fontSize: 9.5, color: c.textMuted),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-
-                // Info card
+                const SizedBox(width: 8),
                 Expanded(
-                  child: GlassCard(
+                  child: BentoCard(
+                    colors: c,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        StyledWidgets.sectionHeader(
-                            isVi
-                                ? 'Thông tin thiết bị'
-                                : isZh
-                                    ? '网络详情'
-                                    : 'Network Details',
-                            c,
-                            icon: Icons.info_outline),
-                        const SizedBox(height: 12),
-                        Text(
-                          noteText,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: c.textSecondary,
-                              height: 1.6),
-                        ),
-                        const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.shield_outlined,
-                                    size: 14, color: c.statusActive),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isVi
-                                      ? 'Đang bảo vệ Whitelist'
-                                      : isZh
-                                          ? '白名单保护已激活'
-                                          : 'Whitelist guard active',
-                                  style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: c.textMuted,
-                                      fontWeight: FontWeight.w500),
+                            Flexible(
+                              child: Text(
+                                s.hotspotArpTitle,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: c.textMuted,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              ],
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            _isFixingDhcp
-                                ? SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: c.linkAccent),
-                                  )
-                                : InkWell(
-                                    onTap: () async {
-                                      setState(() => _isFixingDhcp = true);
-                                      widget.onSnackbar(isVi
-                                          ? 'Đang sửa lỗi IP/DHCP Hotspot...'
-                                          : 'Fixing Hotspot IP/DHCP...');
-                                      final ok =
-                                          await widget.logic.fixHotspotDhcp();
-                                      setState(() => _isFixingDhcp = false);
-                                      if (ok) {
-                                        widget.onSnackbar(isVi
-                                            ? 'Sửa lỗi thành công! Hãy bật lại Hotspot.'
-                                            : 'Fix completed! Please enable Hotspot.');
-                                      } else {
-                                        widget.onSnackbar(
-                                            isVi
-                                                ? 'Sửa lỗi thất bại!'
-                                                : 'Failed to fix connection!',
-                                            isError: true);
-                                      }
-                                    },
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.build_circle_outlined,
-                                            size: 14, color: c.linkAccent),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isVi
-                                              ? 'Sửa lỗi IP/DHCP'
-                                              : isZh
-                                                  ? '修复IP/DHCP错误'
-                                                  : 'Fix IP/DHCP Error',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            color: c.linkAccent,
-                                            fontWeight: FontWeight.bold,
-                                            decoration:
-                                                TextDecoration.underline,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                            Icon(Icons.radar_rounded,
+                                size: 14, color: c.accentEmerald),
                           ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${widget.logic.connectedClients.length}',
+                          style: TextStyle(
+                            fontFamily: 'Cascadia Code',
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          s.hotspotReachable,
+                          style: TextStyle(fontSize: 9.5, color: c.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: BentoCard(
+                    colors: c,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                s.hotspotBandTitle,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: c.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(Icons.tune_rounded,
+                                size: 14, color: c.accentAmber),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatBandLabel(config.band),
+                          style: TextStyle(
+                            fontFamily: 'Cascadia Code',
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          s.hotspotBandFreq,
+                          style: TextStyle(fontSize: 9.5, color: c.textMuted),
                         ),
                       ],
                     ),
@@ -461,38 +542,73 @@ class _HotspotTabState extends State<HotspotTab> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
-            // Wi-Fi Config card
-            GlassCard(
-              padding: const EdgeInsets.all(20),
+            // 3. Wi-Fi Configuration Bento Card
+            BentoCard(
+              colors: c,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  StyledWidgets.sectionHeader(titleConfig, c,
-                      icon: Icons.wifi_password),
-                  const SizedBox(height: 16),
+                  BentoSectionHeader(
+                    title: titleConfig,
+                    icon: Icons.wifi_password_rounded,
+                    colors: c,
+                  ),
+                  const SizedBox(height: 10),
 
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // SSID field
+                      // SSID Input
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(labelSsid,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.textSecondary)),
-                            const SizedBox(height: 6),
+                            Text(
+                              labelSsid,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: c.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
                             TextFormField(
                               controller: _ssidController,
-                              style:
-                                  TextStyle(color: c.textPrimary, fontSize: 13),
-                              decoration: const InputDecoration(
-                                prefixIcon: Icon(Icons.wifi, size: 16),
+                              style: TextStyle(
+                                color: c.textPrimary,
+                                fontSize: 13,
+                              ),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.wifi_rounded,
+                                  size: 17,
+                                  color: c.linkAccent,
+                                ),
+                                filled: true,
+                                fillColor: c.subCardBg,
+                                hintText: s.hotspotSsidHint,
+                                hintStyle: TextStyle(
+                                  color: c.textMuted,
+                                  fontSize: 12,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: c.borderDefault),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: c.borderDefault),
+                                ),
                               ),
                               validator: (val) =>
                                   val == null || val.trim().isEmpty
@@ -504,38 +620,86 @@ class _HotspotTabState extends State<HotspotTab> {
                       ),
                       const SizedBox(width: 16),
 
-                      // Password field
+                      // Password Input
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(labelPassphrase,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.textSecondary)),
-                            const SizedBox(height: 6),
+                            Text(
+                              labelPassphrase,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: c.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
                               style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontSize: 13,
-                                  fontFamily: _obscurePassword
-                                      ? null
-                                      : 'Cascadia Code'),
+                                color: c.textPrimary,
+                                fontSize: 13,
+                                fontFamily:
+                                    _obscurePassword ? null : 'Cascadia Code',
+                              ),
                               decoration: InputDecoration(
-                                prefixIcon:
-                                    const Icon(Icons.lock_outline, size: 16),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    size: 16,
-                                  ),
-                                  onPressed: () => setState(() =>
-                                      _obscurePassword = !_obscurePassword),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 17,
+                                  color: c.linkAccent,
+                                ),
+                                suffixIcon: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        size: 17,
+                                        color: c.textMuted,
+                                      ),
+                                      onPressed: () => setState(
+                                        () => _obscurePassword =
+                                            !_obscurePassword,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.copy_rounded,
+                                        size: 15,
+                                        color: c.textMuted,
+                                      ),
+                                      onPressed: () {
+                                        Clipboard.setData(
+                                          ClipboardData(
+                                            text: _passwordController.text,
+                                          ),
+                                        );
+                                        widget.onSnackbar(
+                                          s.hotspotPasswordCopied,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                filled: true,
+                                fillColor: c.subCardBg,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: c.borderDefault),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: c.borderDefault),
                                 ),
                               ),
                               validator: (val) {
@@ -543,9 +707,7 @@ class _HotspotTabState extends State<HotspotTab> {
                                   return s.errFillRequired;
                                 }
                                 if (val.trim().length < 8) {
-                                  return isVi
-                                      ? 'Mật khẩu phải từ 8 ký tự trở lên'
-                                      : 'Password must be at least 8 characters';
+                                  return s.hotspotPasswordShort;
                                 }
                                 return null;
                               },
@@ -555,56 +717,49 @@ class _HotspotTabState extends State<HotspotTab> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
 
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Band field
+                      // Band Selector with BentoSegmentedControl
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(labelBand,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.textSecondary)),
-                            const SizedBox(height: 6),
-                            Container(
-                              height: 42,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: c.bgTertiary,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: c.borderDefault),
+                            Text(
+                              labelBand,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: c.textPrimary,
                               ),
-                              child: DropdownButton<String>(
-                                value: _selectedBand,
-                                underline: const SizedBox(),
-                                isExpanded: true,
-                                dropdownColor: c.bgSecondary,
-                                style: TextStyle(
-                                    color: c.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 6),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: BentoSegmentedControl<String>(
+                                colors: c,
                                 items: const [
-                                  DropdownMenuItem(
-                                      value: 'Auto',
-                                      child: Text('Auto (Recommended)')),
-                                  DropdownMenuItem(
-                                      value: 'TwoPointFourGigahertz',
-                                      child: Text('2.4 GHz')),
-                                  DropdownMenuItem(
-                                      value: 'FiveGigahertz',
-                                      child: Text('5.0 GHz')),
+                                  BentoSegmentItem(
+                                    value: 'Auto',
+                                    label: 'Auto',
+                                    icon: Icons.autorenew_rounded,
+                                  ),
+                                  BentoSegmentItem(
+                                    value: 'TwoPointFourGigahertz',
+                                    label: '2.4 GHz',
+                                    icon: Icons.wifi_rounded,
+                                  ),
+                                  BentoSegmentItem(
+                                    value: 'FiveGigahertz',
+                                    label: '5.0 GHz',
+                                    icon: Icons.speed_rounded,
+                                  ),
                                 ],
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() => _selectedBand = val);
-                                  }
-                                },
+                                groupValue: _selectedBand,
+                                onValueChanged: (val) =>
+                                    setState(() => _selectedBand = val),
                               ),
                             ),
                           ],
@@ -612,24 +767,50 @@ class _HotspotTabState extends State<HotspotTab> {
                       ),
                       const SizedBox(width: 16),
 
-                      // Max clients limit field
+                      // Max clients limit
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(labelMaxClients,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.textSecondary)),
+                            Text(
+                              labelMaxClients,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: c.textPrimary,
+                              ),
+                            ),
                             const SizedBox(height: 6),
                             TextFormField(
                               controller: _maxClientsController,
-                              style:
-                                  TextStyle(color: c.textPrimary, fontSize: 13),
-                              decoration: const InputDecoration(
-                                prefixIcon:
-                                    Icon(Icons.people_alt_outlined, size: 16),
+                              style: TextStyle(
+                                color: c.textPrimary,
+                                fontSize: 13,
+                                fontFamily: 'Cascadia Code',
+                              ),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.people_alt_rounded,
+                                  size: 17,
+                                  color: c.linkAccent,
+                                ),
+                                filled: true,
+                                fillColor: c.subCardBg,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: c.borderDefault),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: c.borderDefault),
+                                ),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (val) {
@@ -638,14 +819,10 @@ class _HotspotTabState extends State<HotspotTab> {
                                 }
                                 final num = int.tryParse(val.trim());
                                 if (num == null) {
-                                  return isVi
-                                      ? 'Phải là chữ số'
-                                      : 'Must be a number';
+                                  return s.hotspotNotNumber;
                                 }
                                 if (num < 1 || num > 128) {
-                                  return isVi
-                                      ? 'Giới hạn từ 1 đến 128'
-                                      : 'Must be between 1 and 128';
+                                  return s.hotspotClientRange;
                                 }
                                 return null;
                               },
@@ -655,19 +832,19 @@ class _HotspotTabState extends State<HotspotTab> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
-                  // Save button spanning full width
+                  // Save Button
                   SizedBox(
-                    height: 44,
+                    height: 38,
                     child: ElevatedButton.icon(
-                      onPressed: _isLoading
+                      onPressed: _isSaving
                           ? null
                           : () async {
                               if (!_formKey.currentState!.validate()) {
                                 return;
                               }
-                              setState(() => _isLoading = true);
+                              setState(() => _isSaving = true);
                               widget.onSnackbar(msgUpdating);
 
                               final maxClientsVal = int.tryParse(
@@ -680,7 +857,8 @@ class _HotspotTabState extends State<HotspotTab> {
                                 maxClientsVal,
                               );
 
-                              setState(() => _isLoading = false);
+                              if (!mounted) return;
+                              setState(() => _isSaving = false);
                               if (ok) {
                                 widget.onSnackbar(msgSuccess);
                                 final newConfig = widget.logic.hotspotConfig;
@@ -696,14 +874,83 @@ class _HotspotTabState extends State<HotspotTab> {
                                 widget.onSnackbar(msgError, isError: true);
                               }
                             },
-                      icon: _isLoading
+                      icon: _isSaving
                           ? const SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.save_outlined, size: 16),
-                      label: Text(labelSave),
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save_rounded, size: 17),
+                      label: Text(
+                        labelSave,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: c.linkAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // 4. Notes & System Advice Bento Card
+            BentoCard(
+              colors: c,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: c.accentAmber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: c.accentAmber.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.tips_and_updates_rounded,
+                      size: 16,
+                      color: c.accentAmber,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.hotspotSystemNote,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          noteText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: c.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -713,5 +960,13 @@ class _HotspotTabState extends State<HotspotTab> {
         ),
       ),
     );
+  }
+
+  String _formatBandLabel(String band) {
+    if (band.toLowerCase().contains('five')) return '5.0 GHz';
+    if (band.toLowerCase().contains('two') || band.contains('2.4')) {
+      return '2.4 GHz';
+    }
+    return 'Auto';
   }
 }

@@ -68,6 +68,14 @@ class AppStrings {
   String get tabWhitelist => _s('WHITELIST', '白名单', 'DANH SÁCH TRẮNG');
   String get tabLogs => _s('LOGS', '日志', 'NHẬT KÝ');
 
+  String get tabTitleMonitor => _s('Monitor', '实时监控', 'Giám sát');
+  String get tabTitleWhitelist =>
+      _s('Whitelist Manager', '白名单管理', 'Quản lý danh sách trắng');
+  String get tabTitleConsole => _s('Console Terminal', '控制台', 'Bảng nhật ký');
+  String get tabTitleHotspot =>
+      _s('Mobile Hotspot', '热点配置', 'Cấu hình Hotspot');
+  String get tabTitleSettings => _s('Global Settings', '全局设置', 'Cài đặt chung');
+
   String get btnStartGuard => _s('Start Guard', '开启防护', 'Bật Bảo Vệ');
   String get btnStopGuard => _s('Stop Guard', '停止防护', 'Tắt Bảo Vệ');
   String get btnAddDevice => _s('Add Device', '添加设备', 'Thêm Thiết Bị');
@@ -85,6 +93,9 @@ class AppStrings {
 
   String get tooltipRefresh => _s('Refresh lists', '刷新列表', 'Làm mới danh sách');
   String get tooltipLanguage => _s('Language', '语言', 'Ngôn ngữ');
+  String get tooltipClearSearch => _s('Clear search', '清除搜索', 'Xóa tìm kiếm');
+  String get tooltipCardView => _s('Card View', '卡片视图', 'Xem thẻ');
+  String get tooltipTableView => _s('Table View', '表格视图', 'Xem bảng');
   String tooltipTheme(String modeName) =>
       _s('Theme: $modeName', '主题: $modeName', 'Giao diện: $modeName');
 
@@ -229,6 +240,66 @@ class AppStrings {
       '设备已从白名单移除', 'Đã xóa thiết bị khỏi whitelist');
   String get btnNickname => _s('Nickname', '修改备注', 'Sửa Tên');
 
+  // ── LAN OTA Update ──────────────────────────
+  String get otaTitle =>
+      _s('LAN OTA Update', '局域网在线更新', 'Cập Nhật Mạng Nội Bộ (OTA)');
+  String get otaDesc => _s(
+      'Automatically check and update from internal network share or server',
+      '自动检测局域网共享服务器或内部文件服务器上的最新版本',
+      'Tự động kiểm tra và nâng cấp phiên bản từ máy chủ chia sẻ nội bộ');
+  String get otaCurrentVersion =>
+      _s('Current Version', '当前版本', 'Phiên bản hiện tại');
+  String get otaLastChecked => _s('Last checked', '上次检查', 'Kiểm tra gần nhất');
+  String get otaNeverChecked =>
+      _s('Never checked', '从未检查', 'Chưa kiểm tra bao giờ');
+  String get otaCheckNow =>
+      _s('Check for Updates', '检查更新', 'Kiểm tra cập nhật');
+  String get otaChecking => _s('Checking...', '正在检查...', 'Đang kiểm tra...');
+  String get otaUpdateNow => _s('Update Now', '立即更新', 'Cập nhật ngay');
+  String otaUpdateAvailable(String ver) => _s('New version $ver is available!',
+      '发现新版本 $ver 可用！', 'Đã có phiên bản mới $ver!');
+  String get otaUpToDate => _s('You are using the latest version.', '当前已是最新版本。',
+      'Bạn đang sử dụng phiên bản mới nhất.');
+  String get otaServerPath => _s('Server Share Path (UNC / Directory)',
+      '服务器共享路径 (UNC/目录)', 'Đường dẫn máy chủ (UNC / Thư mục)');
+  String get otaServerPathHint => _s(
+      r'\\server\share\path', r'\\server\share\path', r'\\server\share\path');
+  String get otaUsername => _s('SMB Username', 'SMB 用户名', 'Tài khoản SMB');
+  String get otaPassword => _s('SMB Password', 'SMB 密码', 'Mật khẩu SMB');
+  String get otaCheckInterval =>
+      _s('Auto-check Frequency', '自动检查频率', 'Tần suất tự kiểm tra');
+  String get otaIntervalDaily =>
+      _s('Daily (24 hours)', '每天 (24小时)', 'Hàng ngày (24 giờ)');
+  String get otaIntervalWeekly =>
+      _s('Weekly (7 days)', '每周 (7天)', 'Hàng tuần (7 ngày)');
+  String get otaIntervalMonthly =>
+      _s('Monthly (30 days)', '每月 (30天)', 'Hàng tháng (30 ngày)');
+  String get otaIntervalOff =>
+      _s('Disabled (Manual only)', '关闭 (仅手动)', 'Tắt (Chỉ thủ công)');
+  String get otaTestConnection => _s('Test SMB', '测试连接', 'Thử kết nối');
+  String get otaTestingConnection => _s('Testing...', '正在连接...', 'Đang thử...');
+  String get otaConnectionSuccess => _s('SMB share connected successfully!',
+      'SMB 共享连接成功！', 'Kết nối thư mục chia sẻ thành công!');
+  String get otaConnectionFailed => _s('Failed to connect to SMB share',
+      '连接 SMB 共享失败', 'Kết nối thư mục chia sẻ thất bại');
+  String get otaOpenConfigFolder =>
+      _s('Open Config Folder', '打开配置目录', 'Mở thư mục cấu hình');
+  String get otaSaveConfig =>
+      _s('Save OTA Settings', '保存更新配置', 'Lưu cấu hình OTA');
+  String get otaConfigSaved =>
+      _s('OTA settings saved successfully', '更新配置保存成功', 'Đã lưu cấu hình OTA');
+  String get otaConfigSaveFailed => _s('Could not save OTA settings securely',
+      '无法安全保存 OTA 配置', 'Không thể lưu cấu hình OTA an toàn');
+  String get otaReleaseNotes =>
+      _s('Release Notes', '更新日志', 'Ghi chú phát hành');
+  String get otaPackageSize => _s('Package Size', '文件大小', 'Kích thước gói');
+  String get otaDownloading => _s('Downloading update package...', '正在下载更新包...',
+      'Đang tải gói cập nhật...');
+  String get otaExtracting => _s('Extracting update package...', '正在解压更新包...',
+      'Đang giải nén gói cập nhật...');
+  String get otaApplying => _s('Applying update and restarting...',
+      '正在应用更新并重启...', 'Đang áp dụng cập nhật và khởi động lại...');
+
   // ── User Guide ──────────────────────────────
   String get dlgGuideTitle => _s('JA WiFi Hotspot Guard - User Guide',
       'JA WiFi 热点防护 - 用户指南', 'JA WiFi Hotspot Guard - Hướng Dẫn');
@@ -271,6 +342,244 @@ class AppStrings {
           '  TL: Thiết bị đó có thể đã thay đổi IP hoặc kết nối lại. Trình bảo vệ sẽ tự động phát hiện và mở chặn trong vòng lặp tiếp theo (dưới 5 giây).\n\n'
           '• H: Điều gì xảy ra khi tắt ứng dụng?\n'
           '  TL: Khi tắt bảo vệ hoặc đóng ứng dụng, chương trình sẽ tự động dọn dẹp mọi quy tắc firewall bắt đầu bằng "WiFiGuard_" và xóa các cấu hình ARP tạm thời, trả mạng của bạn về trạng thái bình thường ngay lập tức.');
+
+  // ── Console ──────────────────────────────────
+  String get consoleTitle => _s(
+        'JA WiFi Guard Console • live_stream.log',
+        'JA WiFi Guard Console • live_stream.log',
+        'JA WiFi Guard Console • live_stream.log',
+      );
+  String get consoleStreamActive => _s('STREAM ACTIVE', '正在接收', 'ĐANG NHẬN');
+  String get consoleSearchHint =>
+      _s('Search logs...', '搜索日志...', 'Tìm từ khóa trong log...');
+  String get consoleFilterAll => _s('All', '全部', 'Tất cả');
+  String get consoleFilterBlocks => _s('Blocks', '拦截', 'Chặn');
+  String get consoleFilterWarnings => _s('Warnings', '警告', 'Cảnh báo');
+  String get consoleFilterAllows => _s('Allows', '允许', 'Cho phép');
+  String get consoleAutoScroll => _s('Auto Scroll', '自动滚动', 'Tự cuộn');
+  String get consoleCopy => _s('Copy', '复制', 'Sao chép');
+  String get consoleClear => _s('Clear', '清除', 'Xóa');
+  String get consoleCopied => _s(
+        'Copied all logs to the clipboard',
+        '已复制全部日志到剪贴板',
+        'Đã sao chép toàn bộ logs vào clipboard',
+      );
+  String get consoleCleared => _s(
+        'Cleared the terminal',
+        '已清空终端画面',
+        'Đã xóa sạch màn hình terminal',
+      );
+  String get consoleEmpty => _s(
+        'No log lines match the current filter',
+        '没有符合筛选条件的日志',
+        'Không có bản ghi log nào phù hợp với bộ lọc',
+      );
+
+  // ── Settings extras ──────────────────────────
+  String settingsIntervalUpdated(int seconds) => _s(
+        'Scan interval updated: $seconds seconds',
+        '检测周期已更新：$seconds 秒',
+        'Chu kỳ quét đã cập nhật: $seconds giây',
+      );
+  String get settingsBackupTitle =>
+      _s('Whitelist Backup', '白名单备份', 'Sao lưu Whitelist');
+  String get settingsBackupDesc => _s(
+        'Import or export the trusted MAC database to back up and sync between machines.',
+        '导入或导出已信任的 MAC 地址库，以便备份并在多台电脑之间同步。',
+        'Xuất hoặc nhập cơ sở dữ liệu các địa chỉ MAC đã tin cậy để sao lưu và đồng bộ giữa các máy trạm.',
+      );
+  String get settingsImportFile => _s('Import File', '导入文件', 'Nhập file');
+  String get settingsExportFile => _s('Export File', '导出文件', 'Xuất file');
+  String get settingsGuideTitle =>
+      _s('Guide & Help', '帮助文档', 'Tài liệu hướng dẫn & Trợ giúp');
+  String get otaCheckIntervalDesc => _s(
+        'How often to look for a new release when the app opens',
+        '打开应用时自动检查新版本的频率',
+        'Tần suất tự động kiểm tra bản phát hành mới khi mở ứng dụng',
+      );
+
+  // ── Hotspot ──────────────────────────────────
+  String get hotspotConfigTitle => _s(
+        'Wi-Fi Network Configuration',
+        '无线网络配置',
+        'Cấu hình mạng Wi-Fi',
+      );
+  String get hotspotSsidLabel =>
+      _s('Network Name (SSID)', '网络名称 (SSID)', 'Tên Wi-Fi (SSID)');
+  String get hotspotPasswordLabel =>
+      _s('Network Password (WPA2)', '网络密码 (WPA2)', 'Mật khẩu Wi-Fi');
+  String get hotspotBandLabel => _s('Network Band', '网络频段', 'Băng tần');
+  String get hotspotSave => _s('Save Configuration', '保存设置', 'Lưu cấu hình');
+  String get hotspotUpdating => _s(
+        'Updating hotspot settings...',
+        '正在更新配置...',
+        'Đang cập nhật cấu hình...',
+      );
+  String get hotspotUpdated => _s(
+        'Hotspot settings updated successfully!',
+        '热点配置更新成功!',
+        'Đã cập nhật cấu hình hotspot!',
+      );
+  String get hotspotUpdateFailed =>
+      _s('Failed to update settings!', '更新失败!', 'Cập nhật thất bại!');
+  String get hotspotNote => _s(
+        'Note: This feature configures the default Windows Mobile Hotspot. You can change the maximum client limit (default is 8, requires Administrator permissions, and may require toggling the Hotspot to apply).',
+        '注意: 此功能将直接修改 Windows 默认的移动热点配置。您可以修改最大连接数限制（默认为 8，需管理员权限，可能需要重新开关热点生效）。',
+        'Lưu ý: Tính năng này thay đổi trực tiếp cấu hình Mobile Hotspot mặc định của Windows. Bạn có thể thay đổi giới hạn số thiết bị tối đa (mặc định là 8, yêu cầu quyền Administrator và có thể cần bật/tắt lại Hotspot).',
+      );
+  String get hotspotMaxClients => _s(
+        'Max Clients Limit (1-128)',
+        '连接限制数 (1-128)',
+        'Giới hạn kết nối (1-128)',
+      );
+  String get hotspotLoading => _s(
+        'Loading Hotspot configurations...',
+        '正在获取热点配置...',
+        'Đang tải thông tin Hotspot...',
+      );
+  String get hotspotDefaultName => _s(
+        'Windows Mobile Hotspot',
+        'Windows 移动热点',
+        'Windows Mobile Hotspot',
+      );
+  String get hotspotBroadcasting => _s(
+        'Broadcasting Wi-Fi network and sharing Internet',
+        '正在广播 Wi-Fi 并共享 Internet',
+        'Đang phát sóng Wi-Fi và chia sẻ kết nối Internet',
+      );
+  String get hotspotStoppedHint => _s(
+        'Mobile Hotspot is off. Toggle to start sharing.',
+        '移动热点已关闭。打开开关即可开始共享。',
+        'Điểm phát sóng đang tắt. Bật công tắc để bắt đầu chia sẻ.',
+      );
+  String get hotspotToggled => _s(
+        'Hotspot state changed',
+        '热点状态已切换',
+        'Đã chuyển đổi trạng thái hotspot',
+      );
+  String get hotspotToggleFailed =>
+      _s('Failed to toggle hotspot!', '切换热点失败!', 'Chuyển đổi thất bại!');
+  String get hotspotIcsWorking => _s(
+        'Killing ICS PID & restarting SharedAccess...',
+        '正在结束 ICS 进程并重启 SharedAccess...',
+        'Đang buộc dừng PID và khởi động lại dịch vụ ICS...',
+      );
+  String get hotspotIcsOk => _s(
+        'ICS service repaired & restarted successfully!',
+        'ICS 服务已成功重启!',
+        'Dịch vụ ICS đã khởi động lại thành công!',
+      );
+  String get hotspotIcsFailed => _s(
+        'Failed to restart ICS service!',
+        '重启 ICS 服务失败!',
+        'Khởi động lại dịch vụ ICS thất bại!',
+      );
+  String get hotspotFixIcs =>
+      _s('Fix ICS (Kill PID)', '修复 ICS (结束进程)', 'Sửa lỗi ICS (Kill PID)');
+  String get hotspotDhcpWorking => _s(
+        'Fixing Hotspot IP/DHCP...',
+        '正在修复热点 IP/DHCP...',
+        'Đang sửa lỗi IP/DHCP Hotspot...',
+      );
+  String get hotspotDhcpOk => _s(
+        'Fix completed! Please enable Hotspot.',
+        '修复完成! 请重新打开热点。',
+        'Sửa lỗi thành công! Hãy bật lại Hotspot.',
+      );
+  String get hotspotDhcpFailed =>
+      _s('Failed to fix connection!', '修复连接失败!', 'Sửa lỗi thất bại!');
+  String get hotspotFixDhcp => _s('Fix DHCP', '修复 IP/DHCP', 'Sửa IP/DHCP');
+  String get hotspotOpenMonitor => _s(
+        'Manage in Monitor Tab →',
+        '在监控页管理设备 →',
+        'Quản lý thiết bị ở Monitor →',
+      );
+  String get hotspotDhcpClients =>
+      _s('DHCP Clients', 'DHCP 客户端', 'Máy khách DHCP');
+  String get hotspotLeases =>
+      _s('Allocated leases', '已分配地址', 'Đang cấp phát IP');
+  String get hotspotArpTitle =>
+      _s('Active Scan (ARP)', '实时扫描 (ARP)', 'Quét thực tế (ARP)');
+  String get hotspotReachable =>
+      _s('Reachable devices', '可达设备', 'Thiết bị đang truyền tin');
+  String get hotspotBandTitle => _s('Wi-Fi Band', 'Wi-Fi 频段', 'Băng tần Wi-Fi');
+  String get hotspotBandFreq =>
+      _s('Operating frequency', '工作频率', 'Tần số phát sóng');
+  String get hotspotSsidHint =>
+      _s('Enter the Wi-Fi name...', '输入 Wi-Fi 名称...', 'Nhập tên Wi-Fi...');
+  String get hotspotPasswordCopied => _s(
+        'Wi-Fi password copied',
+        '已复制 Wi-Fi 密码',
+        'Đã sao chép mật khẩu Wi-Fi',
+      );
+  String get hotspotPasswordShort => _s(
+        'Password must be at least 8 characters',
+        '密码至少 8 个字符',
+        'Mật khẩu phải từ 8 ký tự trở lên',
+      );
+  String get hotspotNotNumber =>
+      _s('Must be a number', '必须是数字', 'Phải là chữ số');
+  String get hotspotClientRange => _s(
+        'Must be between 1 and 128',
+        '限制范围为 1 到 128',
+        'Giới hạn từ 1 đến 128',
+      );
+  String get hotspotSystemNote => _s('System Note', '系统说明', 'Ghi chú hệ thống');
+
+  // ── Whitelist tab ────────────────────────────
+  String get whitelistTrusted =>
+      _s('Trusted Whitelist', '信任白名单', 'Thiết bị tin cậy');
+  String get whitelistTrustedDesc =>
+      _s('Approved for access', '已授权连接设备', 'Được cấp quyền truy cập');
+  String get whitelistSecureBadge => _s('SECURE', '安全', 'SECURE');
+  String get whitelistOnlineStat => _s('Active Online', '当前在线', 'Đang kết nối');
+  String get whitelistOnlineStatDesc => _s(
+        'Currently connected',
+        '正在网络中传输',
+        'Đang nhận diện trên mạng',
+      );
+  String get whitelistActiveBadge => _s('ACTIVE', '活跃', 'ACTIVE');
+  String get whitelistIdleBadge => _s('IDLE', '空闲', 'IDLE');
+  String get whitelistOfflineStat =>
+      _s('Offline Devices', '离线设备', 'Ngoại tuyến');
+  String get whitelistOfflineStatDesc => _s(
+        'Not currently active',
+        '暂未接入热点',
+        'Chưa kết nối vào mạng',
+      );
+  String get whitelistStandbyBadge => _s('STANDBY', '待命', 'STANDBY');
+  String get whitelistSearchHint => _s(
+        'Search by nickname or MAC...',
+        '搜索设备名称或MAC...',
+        'Tìm theo tên hoặc MAC...',
+      );
+  String get whitelistFilterAll => _s('All', '全部', 'Tất cả');
+  String get whitelistFilterOnline => _s('Online', '在线', 'Online');
+  String get whitelistFilterOffline => _s('Offline', '离线', 'Offline');
+  String get whitelistEmptyHint => _s(
+        'Click "+ Add Device" or approve active devices from the Monitor tab.',
+        '点击“+ 添加设备”，或在监控页批准正在连接的设备。',
+        'Hãy nhấn "+ Thêm thiết bị" hoặc duyệt các thiết bị đang kết nối từ tab Monitor.',
+      );
+  String get whitelistUnnamed =>
+      _s('Unnamed device', '未命名设备', 'Thiết bị không tên');
+  String get whitelistConnectedNow => _s(
+        'Connected to Hotspot',
+        '已连接到热点',
+        'Đang kết nối vào Wi-Fi',
+      );
+  String get whitelistDeviceOffline =>
+      _s('Device is offline', '设备已离线', 'Thiết bị ngoại tuyến');
+  String whitelistMacCopied(String mac) => _s(
+        'Copied MAC: $mac',
+        '已复制 MAC: $mac',
+        'Đã sao chép MAC: $mac',
+      );
+  String get whitelistOnlineBadge => _s('ONLINE', '在线', 'ONLINE');
+  String get whitelistOfflineBadge => _s('OFFLINE', '离线', 'OFFLINE');
+  String get whitelistEditName => _s('Edit name', '修改名称', 'Sửa tên');
+  String get whitelistRemoveDevice =>
+      _s('Remove device', '移出列表', 'Xóa khỏi danh sách');
 
   String _s(String en, String zh, String vi) {
     switch (lang) {

@@ -12,6 +12,10 @@ import 'native/win_core.dart';
 
 final _logger = Logger('Logic');
 
+String _escapePowerShellSingleQuoted(String value) {
+  return value.replaceAll("'", "''");
+}
+
 class WhitelistEntry {
   final String mac;
   String nickname;
@@ -31,6 +35,7 @@ class ClientDevice {
   final String nickname;
   final bool isAllowed;
   final bool isWhitelisted;
+  final bool isBlocked;
 
   ClientDevice({
     required this.ip,
@@ -39,6 +44,7 @@ class ClientDevice {
     required this.nickname,
     required this.isAllowed,
     required this.isWhitelisted,
+    required this.isBlocked,
   });
 }
 
@@ -96,6 +102,23 @@ class WifiGuardLogic extends ChangeNotifier {
   List<String> get logLines => _logLines;
   int get checkIntervalSeconds => _checkIntervalSeconds;
   String get searchQuery => _searchQuery;
+
+  @visibleForTesting
+  void setMonitorStateForTesting({
+    required List<ClientDevice> clients,
+    required bool isGuardActive,
+  }) {
+    _connectedClients = List.unmodifiable(clients);
+    _isGuardActive = isGuardActive;
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void setHotspotConfigForTesting(HotspotConfig? config) {
+    _hotspotConfig = config;
+    notifyListeners();
+  }
+
   HotspotConfig? get hotspotConfig => _hotspotConfig;
 
   /// Returns whitelisted entries matching the search query
@@ -565,6 +588,7 @@ class WifiGuardLogic extends ChangeNotifier {
                 runInShell: false);
 
             _blockedIpToRealMac.remove(ip);
+            isPoisoned = false;
             await writeLog('UNBLOCKED: MAC=$realMac  IP=$ip', level: 'OK');
           } else {
             await writeLog('ALLOWED : MAC=$realMac  IP=$ip', level: 'ALLOW');
@@ -652,6 +676,7 @@ class WifiGuardLogic extends ChangeNotifier {
           nickname: displayName,
           isAllowed: isWhitelisted,
           isWhitelisted: isWhitelisted,
+          isBlocked: isPoisoned || _blockedIpToRealMac.containsKey(ip),
         ));
       }
 
@@ -665,25 +690,37 @@ class WifiGuardLogic extends ChangeNotifier {
 
   Future<void> _cleanupOldRules() async {
     _logger.info('Cleaning up firewall rules and ARP poison table entries...');
-    // Delete Firewall Rules
-    await Process.run(
-        'powershell',
-        [
-          '-NoProfile',
-          '-Command',
-          'Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object { \$_.DisplayName -like "WiFiGuard_*" } | Remove-NetFirewallRule -ErrorAction SilentlyContinue'
-        ],
-        runInShell: false);
+    // Bounded so closing the window cannot wait on a stuck PowerShell host.
+    await _runBounded(
+      'powershell',
+      [
+        '-NoProfile',
+        '-Command',
+        'Get-NetFirewallRule -DisplayName "WiFiGuard_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue',
+      ],
+    );
+    await _runBounded(
+      'powershell',
+      [
+        '-NoProfile',
+        '-Command',
+        'Remove-NetNeighbor -LinkLayerAddress "00-00-00-00-00-01" -Confirm:\$false -ErrorAction SilentlyContinue',
+      ],
+    );
+  }
 
-    // Delete ARP poison
-    await Process.run(
-        'powershell',
-        [
-          '-NoProfile',
-          '-Command',
-          'Remove-NetNeighbor -LinkLayerAddress "00-00-00-00-00-01" -Confirm:\$false -ErrorAction SilentlyContinue'
-        ],
-        runInShell: false);
+  Future<void> _runBounded(
+    String executable,
+    List<String> arguments, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    final process = await Process.start(executable, arguments);
+    try {
+      await process.exitCode.timeout(timeout);
+    } on TimeoutException {
+      process.kill();
+      _logger.warning('Killed hung $executable after ${timeout.inSeconds}s');
+    }
   }
 
   // ─── Connected Clients Scanner (Single pass query for Manual Refresh) ─────
@@ -773,6 +810,7 @@ class WifiGuardLogic extends ChangeNotifier {
           nickname: displayName,
           isAllowed: isAllowed,
           isWhitelisted: wlEntry != null,
+          isBlocked: isPoisoned || _blockedIpToRealMac.containsKey(ip),
         ));
       }
 
@@ -1061,20 +1099,75 @@ class WifiGuardLogic extends ChangeNotifier {
     }
   }
 
+  /// Buộc dừng quy trình ICS (SharedAccess) theo PID và khởi động lại dịch vụ.
+  /// Kỹ thuật này giải quyết triệt để trường hợp dịch vụ ICS bị treo (hanging/STOP_PENDING/không thể restart thông thường).
+  Future<bool> repairIcsService({bool silent = false}) async {
+    if (!Platform.isWindows) return false;
+    try {
+      if (!silent) {
+        await writeLog(
+            'Đang thực hiện sửa lỗi ICS (SharedAccess): Tìm PID và buộc dừng...',
+            level: 'WARN');
+      }
+
+      final script = r'''
+$pidLine = sc.exe queryex SharedAccess | Select-String 'PID'
+if ($pidLine) {
+  $pidVal = 0
+  $rawPid = $pidLine.ToString().Split(':')[-1].Trim()
+  if ([int]::TryParse($rawPid, [ref]$pidVal) -and $pidVal -gt 0) {
+    taskkill.exe /PID $pidVal /F | Out-Null
+  }
+}
+Start-Sleep -Seconds 2
+Start-Service -Name SharedAccess -ErrorAction SilentlyContinue
+$svc = Get-Service -Name SharedAccess -ErrorAction SilentlyContinue
+if ($svc) { $svc.Status.ToString() } else { 'Unknown' }
+''';
+
+      final result = await Process.run(
+        'powershell',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          script,
+        ],
+        runInShell: false,
+      );
+
+      final status = result.stdout.toString().trim();
+      final isRunning = status.toLowerCase() == 'running';
+
+      if (!silent) {
+        if (isRunning) {
+          await writeLog(
+              'Sửa lỗi ICS hoàn tất! Dịch vụ SharedAccess đang hoạt động (Running).',
+              level: 'OK');
+        } else {
+          await writeLog(
+              'Dịch vụ SharedAccess sau khi sửa có trạng thái: $status',
+              level: 'WARN');
+        }
+      }
+
+      await fetchHotspotConfig();
+      return isRunning;
+    } catch (e) {
+      if (!silent) {
+        await writeLog('Lỗi khi sửa lỗi dịch vụ ICS: $e', level: 'WARN');
+      }
+      _logger.warning('Failed to repair ICS service: $e');
+      return false;
+    }
+  }
+
   /// Resets the Internet Connection Sharing (ICS) service to clear any DHCP leaks.
   Future<void> resetSharedAccessService() async {
     if (!Platform.isWindows) return;
     try {
-      await Process.run(
-          'powershell',
-          [
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-Command',
-            'Restart-Service -Name SharedAccess -Force -ErrorAction SilentlyContinue'
-          ],
-          runInShell: false);
+      await repairIcsService(silent: true);
     } catch (e) {
       _logger.warning('Failed to reset SharedAccess service: $e');
     }
@@ -1083,6 +1176,22 @@ class WifiGuardLogic extends ChangeNotifier {
   Future<bool> updateHotspotConfig(
       String ssid, String passphrase, String band, int maxClients) async {
     if (!Platform.isWindows) return false;
+    const supportedBands = {
+      'Auto',
+      'TwoPointFourGigahertz',
+      'FiveGigahertz',
+      'SixGigahertz',
+    };
+    if (ssid.trim().isEmpty ||
+        passphrase.trim().length < 8 ||
+        !supportedBands.contains(band) ||
+        maxClients < 1 ||
+        maxClients > 128) {
+      return false;
+    }
+
+    final safeSsid = _escapePowerShellSingleQuoted(ssid);
+    final safePassphrase = _escapePowerShellSingleQuoted(passphrase);
     try {
       final result = await Process.run(
           'powershell',
@@ -1111,21 +1220,35 @@ class WifiGuardLogic extends ChangeNotifier {
                 '  \$tetheringManager = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager,Windows.Networking.NetworkOperators,ContentType=WindowsRuntime]::CreateFromConnectionProfile(\$connectionProfile); '
                 '  if (\$null -ne \$tetheringManager) { '
                 '    \$config = New-Object Windows.Networking.NetworkOperators.NetworkOperatorTetheringAccessPointConfiguration; '
-                '    \$config.Ssid = "$ssid"; '
-                '    \$config.Passphrase = "$passphrase"; '
+                "    \$config.Ssid = '$safeSsid'; "
+                "    \$config.Passphrase = '$safePassphrase'; "
                 '    \$config.Band = [Windows.Networking.NetworkOperators.TetheringWiFiBand]::$band; '
                 '    AwaitAction (\$tetheringManager.ConfigureAccessPointAsync(\$config)); '
                 '    New-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\icssvc\\Settings" -Name "WifiMaxPeers" -Value $maxClients -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null; '
-                '  }'
-                '}'
+                '    "Configured"; '
+                '  } else { "NoTetheringManager"; exit 1; }'
+                '} else { "NoConnectionProfile"; exit 1; }'
           ],
           runInShell: false);
 
+      final statusLines = result.stdout
+          .toString()
+          .split(RegExp(r'\r?\n'))
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+      final status = statusLines.isEmpty ? null : statusLines.last;
+      final succeeded = result.exitCode == 0 && status == 'Configured';
+      if (!succeeded) {
+        _logger.warning(
+            'Hotspot configuration failed: exit=${result.exitCode}, status=$status, stderr=${result.stderr}');
+        return false;
+      }
       await writeLog(
           'Updated Mobile Hotspot settings: SSID=$ssid, Band=$band, MaxClients=$maxClients (Registry updated)',
           level: 'OK');
       await fetchHotspotConfig();
-      return result.exitCode == 0;
+      return true;
     } catch (e) {
       _logger.warning('Failed to update hotspot config: $e');
       return false;
@@ -1139,16 +1262,7 @@ class WifiGuardLogic extends ChangeNotifier {
         await writeLog(
             'Đang đặt lại dịch vụ SharedAccess (ICS) trước khi bật Hotspot...',
             level: 'INFO');
-        await Process.run(
-            'powershell',
-            [
-              '-NoProfile',
-              '-ExecutionPolicy',
-              'Bypass',
-              '-Command',
-              'Restart-Service -Name SharedAccess -Force -ErrorAction SilentlyContinue'
-            ],
-            runInShell: false);
+        await resetSharedAccessService();
         await Future.delayed(const Duration(seconds: 1));
       }
 
@@ -1183,15 +1297,34 @@ class WifiGuardLogic extends ChangeNotifier {
                 '  if (\$null -ne \$tetheringManager) { '
                 '    \$res = Await (\$tetheringManager.$action()) ([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult]); '
                 '    \$res.Status.ToString(); '
-                '  }'
-                '}'
+                '  } else { "NoTetheringManager"; exit 1; }'
+                '} else { "NoConnectionProfile"; exit 1; }'
           ],
           runInShell: false);
 
+      final statusLines = result.stdout
+          .toString()
+          .split(RegExp(r'\r?\n'))
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+      final status = statusLines.isEmpty ? null : statusLines.last;
+      const successfulStatuses = {
+        'Success',
+        'AlreadyOn',
+      };
+      final succeeded = result.exitCode == 0 &&
+          status != null &&
+          successfulStatuses.contains(status);
+      if (!succeeded) {
+        _logger.warning(
+            'Failed to set hotspot state: enable=$enable, exit=${result.exitCode}, status=$status, stderr=${result.stderr}');
+        return false;
+      }
       final stateLabel = enable ? 'Enabled' : 'Disabled';
       await writeLog('Set Mobile Hotspot state -> $stateLabel', level: 'INFO');
       await fetchHotspotConfig();
-      return result.exitCode == 0;
+      return true;
     } catch (e) {
       _logger.warning('Failed to set hotspot state: $e');
       return false;
@@ -1206,42 +1339,55 @@ class WifiGuardLogic extends ChangeNotifier {
           level: 'WARN');
 
       // 1. Stop Hotspot first
-      await setHotspotState(false);
+      final stopOk = await setHotspotState(false);
+      if (!stopOk) {
+        await writeLog(
+            'Không thể xác nhận Hotspot đã dừng; vẫn tiếp tục sửa ICS/DHCP.',
+            level: 'WARN');
+      }
 
-      // 2. Restart Internet Connection Sharing (ICS) service
+      // 2. Restart Internet Connection Sharing (ICS) service with PID-kill
       await writeLog(
-          'Đang khởi động lại dịch vụ Internet Connection Sharing (ICS)...',
+          'Đang buộc dừng và khởi động lại dịch vụ Internet Connection Sharing (ICS)...',
           level: 'INFO');
-      final result = await Process.run(
-          'powershell',
-          [
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-Command',
-            'Restart-Service -Name SharedAccess -Force -ErrorAction SilentlyContinue'
-          ],
-          runInShell: false);
+      final icsOk = await repairIcsService(silent: false);
+      if (!icsOk) {
+        await writeLog(
+            'Không thể khởi động lại dịch vụ ICS; dừng quy trình sửa DHCP.',
+            level: 'WARN');
+        return false;
+      }
 
       // 3. Reset network interface configurations (Winsock and DNS flush)
       await writeLog('Đang đặt lại Winsock và xoá bộ nhớ đệm DNS...',
           level: 'INFO');
-      await Process.run(
+      final networkResult = await Process.run(
           'powershell',
           [
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
             '-Command',
-            'netsh winsock reset; ipconfig /flushdns'
+            '\$ErrorActionPreference = "Stop"; '
+                'netsh winsock reset; '
+                'if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }; '
+                'ipconfig /flushdns; '
+                'exit \$LASTEXITCODE'
           ],
           runInShell: false);
+
+      if (networkResult.exitCode != 0) {
+        await writeLog(
+            'Không thể reset Winsock/DNS (exit=${networkResult.exitCode}).',
+            level: 'WARN');
+        return false;
+      }
 
       await writeLog(
           'Đã sửa lỗi IP/DHCP thành công! Bạn có thể bật lại Mobile Hotspot.',
           level: 'OK');
       await fetchHotspotConfig();
-      return result.exitCode == 0;
+      return true;
     } catch (e) {
       await writeLog('Lỗi trong quá trình sửa lỗi IP/DHCP: $e', level: 'WARN');
       return false;
