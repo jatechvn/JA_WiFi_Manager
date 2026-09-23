@@ -9,7 +9,7 @@
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com/windows)
-  [![Release](https://img.shields.io/badge/Release-v1.1.7-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
+  [![Release](https://img.shields.io/badge/Release-v1.1.8-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
   [![License](https://img.shields.io/badge/License-Proprietary-FFB100?style=for-the-badge)](#-许可证与作者)
 
   <p align="center">
