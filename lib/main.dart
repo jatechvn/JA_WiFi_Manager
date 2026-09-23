@@ -14,12 +14,19 @@ import 'modules/i18n.dart';
 import 'modules/ui/styles.dart';
 import 'modules/ui/main_window.dart';
 
+import 'modules/build_info.dart';
+
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // -debug enables full-precision ISO timestamps in the visible Console log
   // and the internal diagnostic log file.
-  AppConfig.isDebugMode = args.contains('-debug');
+  if (args.contains('-debug') ||
+      args.contains('--debug') ||
+      args.contains('-d')) {
+    AppConfig.isDebugMode = true;
+    BuildInfo.isCliDebug = true;
+  }
 
   // Initialize daily logging
   setupLogger(isDebugMode: AppConfig.isDebugMode);
@@ -110,9 +117,11 @@ void main(List<String> args) async {
   }
 
   // Restore saved language and theme
-  final savedLang =
-      AppLanguageExt.fromCode(AppConfig.get('language', defaultValue: 'en'));
-  final savedThemeStr = AppConfig.get('theme', defaultValue: 'dark');
+  final savedLang = AppLanguageExt.fromCode(
+    AppConfig.get('language', defaultValue: AppConfig.systemLanguageCode()),
+  );
+  final savedThemeStr =
+      AppConfig.get('theme', defaultValue: AppConfig.systemDefaultTheme());
   final savedThemeMode = AppThemeModeExt.fromCode(savedThemeStr);
 
   runApp(JaWifiManagerApp(
@@ -138,13 +147,15 @@ class JaWifiManagerApp extends StatefulWidget {
   State<JaWifiManagerApp> createState() => _JaWifiManagerAppState();
 }
 
-class _JaWifiManagerAppState extends State<JaWifiManagerApp> {
+class _JaWifiManagerAppState extends State<JaWifiManagerApp>
+    with WidgetsBindingObserver {
   late final ThemeNotifier _themeNotifier;
   late final LanguageNotifier _languageNotifier;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _languageNotifier = LanguageNotifier(widget.initialLanguage);
 
     final platformBrightness =
@@ -154,9 +165,17 @@ class _JaWifiManagerAppState extends State<JaWifiManagerApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _themeNotifier.dispose();
     _languageNotifier.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    _themeNotifier.handlePlatformBrightness(
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
   }
 
   @override

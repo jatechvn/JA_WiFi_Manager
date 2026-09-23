@@ -2,6 +2,34 @@
 
 All notable changes to **JA WiFi Hotspot Guard** will be documented in this file.
 
+## [v1.1.8] - 2026-09-23
+
+### 🚀 Nâng cấp & Tính năng mới
+- **Giao diện Bento dày hơn:** thu gọn header, sidebar 220px, và các tab Monitor, Whitelist, Hotspot, Settings để hiện nhiều thiết bị hơn trên một màn hình.
+- **Ngôn ngữ và giao diện theo Windows:** lần chạy đầu dùng ngôn ngữ giao diện Windows (`vi` / `zh` / `en`) và chế độ Auto bám sáng/tối của hệ thống.
+
+### 🐛 Sửa lỗi & Tối ưu hóa
+- **Đóng cửa sổ không còn treo:** không gọi `destroy()` khi Windows vẫn chặn đóng, và lệnh dọn firewall lúc thoát bị giới hạn 3 giây.
+- **Header:** bỏ ô tìm kiếm thừa; tiêu đề tab đi qua `AppStrings`.
+- **Thanh lọc Monitor:** tooltip Xóa tìm kiếm, Xem thẻ, Xem bảng đủ Việt / Anh / Trung.
+
+### 📦 Phát hành
+- Đồng bộ version 1.1.8+10 trong pubspec.yaml và constants.dart.
+
+## [v1.1.7] - 2026-09-21
+
+### 🚀 Major Features & Enhancements
+- **🛠️ Forceful ICS PID-Kill Troubleshooter:**
+  - Added `repairIcsService()` using `sc.exe queryex SharedAccess` PID extraction and `taskkill.exe /PID $icsPid /F` to forcefully terminate and restart hung Windows ICS services.
+  - Added a dedicated "Sửa lỗi ICS (Buộc dừng)" / "Fix ICS (Kill PID)" button in the Hotspot tab with real-time feedback.
+  - Integrated this robust PID-kill logic into `resetSharedAccessService()`, `setHotspotState()`, and `fixHotspotDhcp()`.
+- **📦 Standardization with Sample Skill Set (`dart-build-pro` & `flutter-app-blueprint`):**
+  - Created standard release packaging script `build.bat` with process termination, asset bundling, `.Release.lnk` shortcut creation, and parent-folder x64 ZIP compression (`dist/JA_WiFi_Manager_v1.1.7_Windows_x64.zip`).
+  - Created cross-platform developer scripts `build.sh` and `run.sh`.
+  - Added official `LICENSE` file.
+  - Added multi-language documentation in `i18n/` (`README.vi.md` and `README.zh-CN.md`) with cross-linking language switcher.
+  - Added `lib/modules/build_info.dart` supporting `-debug`, `--debug`, and `-d` CLI flags.
+
 ---
 
 ## [v1.1.6] - 2026-08-14

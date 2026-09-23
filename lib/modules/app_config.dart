@@ -52,19 +52,25 @@ class AppConfig {
     return false;
   }
 
-  /// Windows' current light/dark mode, used to seed the theme preference
-  /// the first time config.ini is created (no hardcoded default).
-  static String _systemDefaultTheme() {
-    return PlatformDispatcher.instance.platformBrightness == Brightness.dark
-        ? 'dark'
-        : 'light';
+  /// Windows UI language: `vi`, `zh`, or `en`.
+  static String systemLanguageCode() {
+    final code = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    if (code.startsWith('vi')) return 'vi';
+    if (code.startsWith('zh')) return 'zh';
+    return 'en';
   }
+
+  /// Follow Windows light/dark live instead of freezing a one-time snapshot.
+  static String systemDefaultTheme() => 'auto';
 
   static Future<void> _load() async {
     try {
       final file = File(_configPath!);
       if (!file.existsSync()) {
-        _values = {'language': 'en', 'theme': _systemDefaultTheme()};
+        _values = {
+          'language': systemLanguageCode(),
+          'theme': systemDefaultTheme(),
+        };
         await _save();
         return;
       }
@@ -86,7 +92,10 @@ class AppConfig {
         }
       }
     } catch (_) {
-      _values = {'language': 'en', 'theme': _systemDefaultTheme()};
+      _values = {
+        'language': systemLanguageCode(),
+        'theme': systemDefaultTheme(),
+      };
     }
   }
 

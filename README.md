@@ -9,8 +9,12 @@
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com/windows)
-  [![Release](https://img.shields.io/badge/Release-v1.1.6-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
+  [![Release](https://img.shields.io/badge/Release-v1.1.8-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
   [![License](https://img.shields.io/badge/License-Proprietary-FFB100?style=for-the-badge)](#-license--author)
+
+  <p align="center">
+    <b>🇺🇸 English</b> • <a href="i18n/README.vi.md">🇻🇳 Tiếng Việt</a> • <a href="i18n/README.zh-CN.md">🇨🇳 中文</a>
+  </p>
 
   <p align="center">
     <b>Monitor connected clients • Whitelist trusted devices • Auto-block intruders with ARP + Firewall</b>
@@ -47,9 +51,10 @@
 - One-click **Import / Export** of the whitelist as a portable JSON backup.
 - Quick "Whitelist" / "Block" actions available directly from each row in the Monitor tab.
 
-### 📶 3. Mobile Hotspot Configuration
+### 📶 3. Mobile Hotspot Configuration & ICS Repair
 - Configure SSID, password, band (2.4 GHz / 5 GHz) and max client count from a validated in-app form.
-- Built-in **DHCP Auto-Fix** flow (restarts the Windows `SharedAccess` service) for hotspots stuck without IP assignment.
+- **Force PID-Kill ICS Troubleshooter:** Forcefully terminates hung `SharedAccess` processes by PID (`taskkill /PID <PID> /F`) and relaunches the service smoothly, resolving persistent Windows ICS crashes.
+- Built-in **DHCP Auto-Fix** flow (restarts the Windows `SharedAccess` service, resets Winsock, and flushes DNS) for hotspots stuck without IP assignment.
 - "View Details" shortcut jumps straight to the Monitor tab for the configured network.
 
 ### 🖥️ 4. Console & Diagnostics
@@ -167,6 +172,8 @@ Whitelisted devices are stored separately in `whitelist.json`, exportable/import
 
 Refer to [CHANGELOG.md](CHANGELOG.md) for full version history details.
 
+- **v1.1.8:** Denser Bento layout, Windows language and Auto theme on first launch, close-window hang fix, and localized header titles plus monitor filter tooltips.
+- **v1.1.7:** Added forceful PID-kill ICS repair troubleshooter, automated log rotation and file pruning (<1MB guard), standardized release build scripts (`build.bat`, `build.sh`, `run.sh`), `LICENSE`, and multi-language documentation (`i18n/`).
 - **v1.1.6:** Fixed duplicate MAC rows in Monitor, added `-debug` launch mode with a build-time debug badge (bounce/ping-pong marquee for overflow text), fixed `-debug` being dropped during admin self-elevation, and reworked the theme toggle to default to the system theme.
 
 ---

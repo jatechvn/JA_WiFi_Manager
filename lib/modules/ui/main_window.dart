@@ -2,6 +2,7 @@
 // Main visual dashboard window widget for JA WiFi Hotspot Guard (Fluent Refactored layout)
 
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../logic.dart';
@@ -17,9 +18,10 @@ import 'whitelist_tab.dart';
 import 'header_bar.dart';
 import 'console_tab.dart';
 import 'hotspot_tab.dart';
+import '../services/ota_update_service.dart';
+import 'widgets/glass_update_dialog.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
-import 'dart:io';
 
 class MainWindow extends StatefulWidget {
   final WifiGuardLogic logic;
@@ -44,6 +46,7 @@ class _MainWindowState extends State<MainWindow>
 
   bool _isLoading = true;
   bool _isClosing = false;
+  bool _closeInProgress = false;
   bool _isAdmin = false;
   String _activeTab = 'MONITOR'; // MONITOR, WHITELIST, CONSOLE, SETTINGS
 
@@ -53,6 +56,7 @@ class _MainWindowState extends State<MainWindow>
   bool _closeToTray = false;
   bool _autoStartGuard = false;
   bool _autoStartHotspot = false;
+  UpdatePackageInfo? _availableUpdate;
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _logScrollController = ScrollController();
@@ -150,20 +154,36 @@ class _MainWindowState extends State<MainWindow>
   }
 
   @override
-  void onWindowClose() async {
+  void onWindowClose() {
     final closeToTray =
         AppConfig.get('close_to_tray', defaultValue: 'false') == 'true';
     if (closeToTray) {
-      await windowManager.hide();
-    } else {
-      if (mounted) {
-        setState(() {
-          _isClosing = true;
-        });
-      }
-      await Future.delayed(const Duration(milliseconds: 100));
-      await widget.logic.stopGuard();
-      await windowManager.destroy();
+      windowManager.hide();
+      return;
+    }
+    _exitApp();
+  }
+
+  /// Closes without waiting forever on firewall cleanup, and without calling
+  /// `destroy()` while close is still being intercepted (`setPreventClose`).
+  /// That combination deadlocks the Windows message loop and the window hangs.
+  Future<void> _exitApp() async {
+    if (_closeInProgress) return;
+    _closeInProgress = true;
+    if (mounted) {
+      setState(() => _isClosing = true);
+    }
+    try {
+      await widget.logic.stopGuard().timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('Guard shutdown timed out or failed: $e');
+    }
+    try {
+      await windowManager.setPreventClose(false);
+      await windowManager.close();
+    } catch (e) {
+      debugPrint('Window close failed, forcing process exit: $e');
+      exit(0);
     }
   }
 
@@ -191,15 +211,7 @@ class _MainWindowState extends State<MainWindow>
     } else if (menuItem.key == 'toggle_guard') {
       await _toggleGuard();
     } else if (menuItem.key == 'exit_app') {
-      final isVisible = await windowManager.isVisible();
-      if (isVisible && mounted) {
-        setState(() {
-          _isClosing = true;
-        });
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-      await widget.logic.stopGuard();
-      await windowManager.destroy();
+      await _exitApp();
     }
   }
 
@@ -254,6 +266,38 @@ class _MainWindowState extends State<MainWindow>
 
     if (mounted) {
       setState(() => _isLoading = false);
+    }
+
+    // Background OTA check
+    _checkOtaUpdates();
+  }
+
+  Future<void> _checkOtaUpdates() async {
+    try {
+      final cfg = await OtaUpdateService().loadExternalConfigFile();
+      final should = OtaUpdateService().shouldCheckForUpdates(
+        interval: cfg.checkInterval,
+        lastCheckTime: cfg.lastCheckTime,
+      );
+      if (should) {
+        final result = await OtaUpdateService().checkForUpdates();
+        if (mounted && result.hasUpdate && result.packageInfo != null) {
+          setState(() {
+            _availableUpdate = result.packageInfo;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[OTA] Background check error: $e');
+    }
+  }
+
+  void _openUpdateDialog() {
+    if (_availableUpdate != null) {
+      showGlassUpdateDialog(
+        context: context,
+        packageInfo: _availableUpdate!,
+      );
     }
   }
 
@@ -476,6 +520,8 @@ class _MainWindowState extends State<MainWindow>
             activeTab: _activeTab,
             onTabSelected: (tab) => setState(() => _activeTab = tab),
             onToggleGuard: _toggleGuard,
+            availableUpdate: _availableUpdate,
+            onOpenUpdateDialog: _openUpdateDialog,
           ),
           VerticalDivider(
               width: 1, color: _c.borderDefault.withValues(alpha: 0.08)),
@@ -486,15 +532,16 @@ class _MainWindowState extends State<MainWindow>
                   logic: widget.logic,
                   themeNotifier: widget.themeNotifier,
                   activeTab: _activeTab,
-                  searchController: _searchController,
                   themeButtonKey: _themeButtonKey,
                   onDataRefreshed: () => _showSnackbar('Data Refreshed'),
+                  availableUpdate: _availableUpdate,
+                  onOpenUpdateDialog: _openUpdateDialog,
                 ),
                 Divider(
                     height: 1, color: _c.borderDefault.withValues(alpha: 0.08)),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
                     child: _buildMainContent(),
                   ),
                 ),
@@ -582,11 +629,13 @@ class _MainWindowState extends State<MainWindow>
       default:
         return MonitorTab(
           logic: widget.logic,
+          searchController: _searchController,
           hasSearchQuery: _searchController.text.isNotEmpty,
           onQuickBlock: _quickBlockClient,
           onQuickWhitelist: _quickWhitelistClient,
           onEditNickname: _editNicknameInline,
           onSnackbar: _showSnackbar,
+          onNavigateToTab: (tab) => setState(() => _activeTab = tab),
         );
     }
   }

@@ -20,6 +20,16 @@ class AppColorsWin11 {
     statusRemoved: Color(0xFFF87171),
     statusChanged: Color(0xFFFBBF24),
     brightness: Brightness.dark,
+    cardBg: Color(0x451E293B),
+    cardHoverBg: Color(0x60334155),
+    subCardBg: Color(0x350F172A),
+    subCardBorder: Color(0x20FFFFFF),
+    glassHighlight: Color(0x40FFFFFF),
+    accentCyan: Color(0xFF38BDF8),
+    accentEmerald: Color(0xFF34D399),
+    accentAmber: Color(0xFFFBBF24),
+    accentRose: Color(0xFFFB7185),
+    accentPurple: Color(0xFFC084FC),
   );
 
   static const light = AppColors(
@@ -39,5 +49,15 @@ class AppColorsWin11 {
     statusRemoved: Color(0xFFDC2626),
     statusChanged: Color(0xFFD97706),
     brightness: Brightness.light,
+    cardBg: Color(0x70FFFFFF),
+    cardHoverBg: Color(0x99FFFFFF),
+    subCardBg: Color(0x40FFFFFF),
+    subCardBorder: Color(0x30CBD5E1),
+    glassHighlight: Color(0x80FFFFFF),
+    accentCyan: Color(0xFF0284C7),
+    accentEmerald: Color(0xFF10B981),
+    accentAmber: Color(0xFFF59E0B),
+    accentRose: Color(0xFFF43F5E),
+    accentPurple: Color(0xFF8B5CF6),
   );
 }
