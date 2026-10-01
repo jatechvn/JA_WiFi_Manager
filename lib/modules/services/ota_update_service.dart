@@ -819,6 +819,24 @@ try {
       }
     }
 
+    // 3.5. Pre-clean user config/data files in payloadDir so they can never overwrite user's actual configuration
+    for (final cfgName in [
+      'config.ini',
+      'whitelist.json',
+      'blacklist.json',
+      'device_names.json',
+      'update_config.json',
+      'user_preferences.json',
+      'wifi_guard.log',
+    ]) {
+      final unwanted = File('${payloadDir.path}\\$cfgName');
+      if (unwanted.existsSync()) {
+        try {
+          unwanted.deleteSync();
+        } catch (_) {}
+      }
+    }
+
     if (prepareOnly) return payloadDir;
 
     // 4. Identify current application directory and PID
@@ -902,10 +920,22 @@ if not errorlevel 1 goto wait_loop
 timeout /t 1 /nobreak >nul
 
 echo [2/3] Dang ghi de tep ung dung moi...
-robocopy "%DST_DIR%" "%BACKUP_DIR%" /E /NP /R:2 /W:1 /XD logs backups /XF config.ini update_config.json whitelist.json >"%~dp0backup.log"
+:: Bao ve va sao luu cau hinh nguoi dung truoc khi ghi de
+if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
+for %%F in (config.ini update_config.json whitelist.json blacklist.json device_names.json user_preferences.json wifi_guard.log) do (
+  if exist "%DST_DIR%\\%%F" copy /y "%DST_DIR%\\%%F" "%BACKUP_DIR%\\%%F" >nul
+)
+
+robocopy "%DST_DIR%" "%BACKUP_DIR%" /E /NP /R:2 /W:1 /XD logs backups /XF config.ini update_config.json whitelist.json blacklist.json device_names.json user_preferences.json wifi_guard.log *.log *.ini.bak *.json.bak *.key >"%~dp0backup.log"
 if errorlevel 8 exit /b 13
-robocopy "%SRC_DIR%" "%DST_DIR%" /E /IS /IT /NP /R:5 /W:2 /XD logs backups /XF config.ini update_config.json whitelist.json >"%~dp0apply.log"
+
+robocopy "%SRC_DIR%" "%DST_DIR%" /E /IS /IT /NP /R:5 /W:2 /XD logs backups /XF config.ini update_config.json whitelist.json blacklist.json device_names.json user_preferences.json wifi_guard.log *.log *.ini.bak *.json.bak *.key >"%~dp0apply.log"
 if errorlevel 8 goto rollback
+
+:: Dam bao giu nguyen toan ven cac file cau hinh sau khi sao chep
+for %%F in (config.ini update_config.json whitelist.json blacklist.json device_names.json user_preferences.json wifi_guard.log) do (
+  if exist "%BACKUP_DIR%\\%%F" copy /y "%BACKUP_DIR%\\%%F" "%DST_DIR%\\%%F" >nul
+)
 
 echo [3/3] Khoi chay ung dung moi...
 start "" "%DST_DIR%\\%EXE_NAME%"
@@ -917,6 +947,9 @@ exit /b 0
 :rollback
 robocopy "%BACKUP_DIR%" "%DST_DIR%" /E /IS /IT /NP /R:2 /W:1 >"%~dp0rollback.log"
 if errorlevel 8 exit /b 14
+for %%F in (config.ini update_config.json whitelist.json blacklist.json device_names.json user_preferences.json wifi_guard.log) do (
+  if exist "%BACKUP_DIR%\\%%F" copy /y "%BACKUP_DIR%\\%%F" "%DST_DIR%\\%%F" >nul
+)
 start "" "%DST_DIR%\\%EXE_NAME%"
 exit /b 15
 ''';

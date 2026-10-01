@@ -213,7 +213,11 @@ class ThemeNotifier extends ChangeNotifier {
   late AppColors _colors;
 
   ThemeNotifier(AppThemeMode initialMode, Brightness platformBrightness)
-      : _mode = initialMode {
+      : _mode = initialMode == AppThemeMode.auto
+            ? (platformBrightness == Brightness.dark
+                ? AppThemeMode.dark
+                : AppThemeMode.light)
+            : initialMode {
     _updateColors(platformBrightness);
   }
 
@@ -248,19 +252,10 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cycles Auto (follow Windows) → Dark → Light.
+  /// Switch directly between light and dark.
   void toggle(Brightness platformBrightness) {
-    switch (_mode) {
-      case AppThemeMode.auto:
-        setMode(AppThemeMode.dark, platformBrightness);
-        break;
-      case AppThemeMode.dark:
-        setMode(AppThemeMode.light, platformBrightness);
-        break;
-      case AppThemeMode.light:
-        setMode(AppThemeMode.auto, platformBrightness);
-        break;
-    }
+    setMode(
+        isDark ? AppThemeMode.light : AppThemeMode.dark, platformBrightness);
   }
 
   /// Keeps Auto mode aligned when Windows itself switches light/dark.

@@ -365,3 +365,225 @@ class ImportResultsDialog extends StatelessWidget {
     );
   }
 }
+
+/// Dialog to add a new device to the Blacklist
+class AddBlacklistDeviceDialog extends StatefulWidget {
+  final WifiGuardLogic logic;
+  const AddBlacklistDeviceDialog({super.key, required this.logic});
+
+  @override
+  State<AddBlacklistDeviceDialog> createState() =>
+      _AddBlacklistDeviceDialogState();
+}
+
+class _AddBlacklistDeviceDialogState extends State<AddBlacklistDeviceDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _macController = TextEditingController();
+  final _nicknameController = TextEditingController();
+  final _reasonController = TextEditingController();
+  String _errorText = '';
+
+  @override
+  void dispose() {
+    _macController.dispose();
+    _nicknameController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  void _submit() async {
+    setState(() => _errorText = '');
+    final s = context.strings;
+    if (!_formKey.currentState!.validate()) return;
+
+    final mac = normalizeMacAddress(_macController.text);
+    if (!isValidMacAddress(mac)) {
+      setState(() => _errorText = s.errInvalidMac);
+      return;
+    }
+
+    final success = await widget.logic.addBlacklistDevice(
+      mac,
+      _nicknameController.text.trim(),
+      reason: _reasonController.text.trim(),
+    );
+    if (!mounted) return;
+    if (success) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() => _errorText = s.errMacInBlacklist);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final s = context.strings;
+
+    return Dialog(
+      child: Container(
+        width: 420,
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.block_rounded, color: c.accentRose, size: 20),
+                  const SizedBox(width: 8),
+                  Text(s.dlgAddBlacklistTitle,
+                      style: Theme.of(context).dialogTheme.titleTextStyle),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // MAC Field
+              Text(s.labelMac,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: c.textSecondary)),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _macController,
+                style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 13,
+                    fontFamily: 'Cascadia Code'),
+                decoration: InputDecoration(
+                  hintText: s.hintMac,
+                ),
+                validator: (val) => val == null || val.trim().isEmpty
+                    ? s.errFillRequired
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              // Nickname Field
+              Text(s.labelNickname,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: c.textSecondary)),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _nicknameController,
+                style: TextStyle(color: c.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: s.hintNickname,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Reason Field
+              Text(s.labelReason,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: c.textSecondary)),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _reasonController,
+                style: TextStyle(color: c.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: s.hintReason,
+                ),
+              ),
+              if (_errorText.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  _errorText,
+                  style: TextStyle(
+                      color: c.statusRemoved,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(s.btnCancel),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: c.accentRose,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _submit,
+                    child: Text(s.btnSave),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog to confirm removal of blacklisted MAC
+class DeleteBlacklistDeviceDialog extends StatelessWidget {
+  final BlacklistEntry entry;
+  const DeleteBlacklistDeviceDialog({super.key, required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final s = context.strings;
+
+    return Dialog(
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(s.dlgDeleteBlacklistTitle,
+                style: Theme.of(context).dialogTheme.titleTextStyle),
+            const SizedBox(height: 16),
+            Text(
+              s.dlgDeleteBlacklistConfirm(
+                  entry.nickname.isNotEmpty ? entry.nickname : entry.mac),
+              style: TextStyle(fontSize: 13, color: c.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              entry.mac,
+              style: TextStyle(
+                  fontFamily: 'Cascadia Code',
+                  fontSize: 12,
+                  color: c.textMuted),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(s.btnCancel),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: c.statusRemoved.withValues(alpha: 0.12),
+                    foregroundColor: c.statusRemoved,
+                    side: BorderSide(
+                        color: c.statusRemoved.withValues(alpha: 0.35)),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(s.btnDelete),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

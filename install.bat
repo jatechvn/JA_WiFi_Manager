@@ -58,10 +58,10 @@ if not exist "%TARGET_DIR%\" (
 echo [3/5] Copying application files...
 :: Preserve runtime configuration; back up program files before replacement if exists.
 if exist "%TARGET_DIR%\ja_wifi_manager.exe" (
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $backup=Join-Path $env:TEMP ('JA_WiFi_Install_Backup_' + [guid]::NewGuid()); & robocopy $env:TARGET_DIR $backup /E /R:1 /W:1 /XD logs backups /XF user_preferences.json update_config.json config.ini whitelist.json wifi_guard.log *.log *.key > $null; if ($LASTEXITCODE -ge 8) { exit 1 }; Write-Host ('Backup: ' + $backup); exit 0"
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $backup=Join-Path $env:TEMP ('JA_WiFi_Install_Backup_' + [guid]::NewGuid()); & robocopy $env:TARGET_DIR $backup /E /R:1 /W:1 /XD logs backups /XF user_preferences.json update_config.json config.ini whitelist.json blacklist.json device_names.json wifi_guard.log *.log *.key > $null; if ($LASTEXITCODE -ge 8) { exit 1 }; Write-Host ('Backup: ' + $backup); exit 0"
     if errorlevel 1 goto install_error
 )
-robocopy "%SOURCE_DIR%" "%TARGET_DIR%" /E /R:1 /W:1 /XD logs backups /XF user_preferences.json update_config.json config.ini whitelist.json wifi_guard.log *.log *.key >nul
+robocopy "%SOURCE_DIR%" "%TARGET_DIR%" /E /R:1 /W:1 /XD logs backups /XF user_preferences.json update_config.json config.ini whitelist.json blacklist.json device_names.json wifi_guard.log *.log *.key >nul
 if errorlevel 8 (
     echo [ERROR] Failed to copy application files!
     if "%SILENT_MODE%"=="0" pause

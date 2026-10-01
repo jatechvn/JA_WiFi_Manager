@@ -66,11 +66,14 @@ class AppStrings {
   // ── Action Bar & Filters ─────────────────────
   String get tabMonitor => _s('MONITOR', '实时监控', 'GIÁM SÁT');
   String get tabWhitelist => _s('WHITELIST', '白名单', 'DANH SÁCH TRẮNG');
+  String get tabBlacklist => _s('BLACKLIST', '黑名单', 'DANH SÁCH ĐEN');
   String get tabLogs => _s('LOGS', '日志', 'NHẬT KÝ');
 
   String get tabTitleMonitor => _s('Monitor', '实时监控', 'Giám sát');
   String get tabTitleWhitelist =>
       _s('Whitelist Manager', '白名单管理', 'Quản lý danh sách trắng');
+  String get tabTitleBlacklist =>
+      _s('Blacklist Manager', '黑名单管理', 'Quản lý danh sách đen');
   String get tabTitleConsole => _s('Console Terminal', '控制台', 'Bảng nhật ký');
   String get tabTitleHotspot =>
       _s('Mobile Hotspot', '热点配置', 'Cấu hình Hotspot');
@@ -79,6 +82,14 @@ class AppStrings {
   String get btnStartGuard => _s('Start Guard', '开启防护', 'Bật Bảo Vệ');
   String get btnStopGuard => _s('Stop Guard', '停止防护', 'Tắt Bảo Vệ');
   String get btnAddDevice => _s('Add Device', '添加设备', 'Thêm Thiết Bị');
+  String get btnAddToBlacklist =>
+      _s('Add to Blacklist', '加入黑名单', 'Thêm Blacklist');
+  String get btnMoveToWhitelist =>
+      _s('Move to Whitelist', '移至白名单', 'Chuyển sang Whitelist');
+  String get btnMoveToBlacklist =>
+      _s('Move to Blacklist', '移至黑名单', 'Chuyển sang Blacklist');
+  String get btnUnblock => _s('Unblock', '解除拦截', 'Mở chặn');
+  String get btnBlock => _s('Block', '拦截', 'Chặn');
   String get btnRefresh => _s('Refresh', '刷新', 'Làm mới');
   String get btnMore => _s('Advanced', '高级', 'Nâng cao');
   String get btnClose => _s('Close', '关闭', 'Đóng');
@@ -160,6 +171,7 @@ class AppStrings {
   // ── Status Badges & State ──────────────────
   String get statusAllowed => _s('ALLOWED', '已允许', 'CHO PHÉP');
   String get statusBlocked => _s('BLOCKED', '已拦截', 'BỊ CHẶN');
+  String get statusBlacklisted => _s('BLACKLISTED', '已列黑名单', 'BỊ CẤM');
   String get statusUnknown => _s('UNKNOWN', '待查', 'CHƯA BIẾT');
   String get labelAdmin => _s('Admin', '管理员', 'Quản trị');
   String get labelStandard => _s('Standard', '普通用户', 'Thường');
@@ -171,6 +183,8 @@ class AppStrings {
       'Whitelist is empty. Add a MAC to get started.',
       '白名单为空。请添加设备。',
       'Danh sách trắng trống. Hãy thêm MAC để bắt đầu.');
+  String get emptyBlacklist => _s('Blacklist is empty. No blocked devices.',
+      '黑名单为空。暂无禁止设备。', 'Danh sách đen trống. Chưa có thiết bị nào bị cấm.');
 
   // ── Status Messages ─────────────────────────
   String get msgGuardStarting => _s(
@@ -196,30 +210,54 @@ class AppStrings {
 
   String whitelistCount(int n) => _s('$n whitelisted devices', '$n 个白名单设备',
       '$n thiết bị trong danh sách trắng');
+  String blacklistCount(int n) => _s(
+      '$n blacklisted devices', '$n 个黑名单设备', '$n thiết bị trong danh sách đen');
 
   // ── Dialogs & Forms ─────────────────────────
   String get dlgAddTitle =>
       _s('Add Whitelist Device', '添加白名单设备', 'Thêm Thiết Bị Whitelist');
+  String get dlgAddBlacklistTitle =>
+      _s('Add Blacklist Device', '添加黑名单设备', 'Thêm Thiết Bị Vào Blacklist');
   String get dlgEditTitle =>
       _s('Edit Device Nickname', '修改设备备注', 'Sửa Tên Thiết Bị');
   String get labelMac => _s('MAC Address', 'MAC 地址', 'Địa chỉ MAC');
   String get labelNickname =>
       _s('Device Nickname', '设备备注 (别名)', 'Tên thiết bị (Gợi nhớ)');
+  String get labelReason =>
+      _s('Reason (Optional)', '拦截原因 (选填)', 'Lý do chặn (Tùy chọn)');
   String get hintMac => 'e.g. D0-65-78-C4-00-9F';
   String get hintNickname => 'e.g. My Phone, Mother\'s Laptop';
+  String get hintReason => _s('e.g. Unauthorized access, suspect device',
+      '例如：未经授权访问、可疑设备', 'VD: Truy cập trái phép, thiết bị lạ');
 
   String get errInvalidMac => _s('Invalid MAC format (XX-XX-XX-XX-XX-XX)',
       'MAC 地址格式不正确', 'Định dạng MAC không hợp lệ (XX-XX-XX-XX-XX-XX)');
   String get errMacExists => _s('This MAC address is already whitelisted',
       '此 MAC 地址已存在于白名单中', 'Địa chỉ MAC này đã có trong whitelist');
+  String get errMacInBlacklist => _s('This MAC address is already blacklisted',
+      '此 MAC 地址已存在于黑名单中', 'Địa chỉ MAC này đã có trong blacklist');
   String get errFillRequired => _s('Please fill in all required fields',
       '请填写所有必填字段', 'Vui lòng điền đầy đủ thông tin');
 
   String get dlgDeleteTitle => _s('Remove Device', '移除设备', 'Xóa Thiết Bị');
+  String get dlgDeleteBlacklistTitle =>
+      _s('Remove from Blacklist', '移出黑名单', 'Xóa Khỏi Blacklist');
   String dlgDeleteConfirm(String name) => _s(
       'Are you sure you want to remove "$name" from whitelist?',
       '确定要从白名单中删除设备 "$name" 吗？',
       'Bạn có chắc chắn muốn xóa "$name" khỏi whitelist?');
+  String dlgDeleteBlacklistConfirm(String name) => _s(
+      'Are you sure you want to remove "$name" from blacklist?',
+      '确定要将设备 "$name" 移出黑名单吗？',
+      'Bạn có chắc chắn muốn xóa "$name" khỏi blacklist?');
+  String dlgMoveToBlacklistConfirm(String name) => _s(
+      'Move "$name" to blacklist? The device will be blocked immediately.',
+      '将设备 "$name" 移至黑名单？该设备将立即被拦截。',
+      'Chuyển "$name" sang blacklist? Thiết bị sẽ bị chặn ngay lập tức.');
+  String dlgMoveToWhitelistConfirm(String name) => _s(
+      'Move "$name" to whitelist? The device will be unblocked.',
+      '将设备 "$name" 移至白名单？设备将被解除拦截。',
+      'Chuyển "$name" sang whitelist? Thiết bị sẽ được mở chặn.');
 
   String get dlgImportTitle => _s('Import Results', '导入结果', 'Kết quả nhập');
   String importSummary(int added, int skipped, int failed) => _s(
@@ -238,6 +276,12 @@ class AppStrings {
       'Đã thêm thiết bị vào whitelist');
   String get msgRemoveSuccess => _s('Device removed from whitelist',
       '设备已从白名单移除', 'Đã xóa thiết bị khỏi whitelist');
+  String get msgBlacklistAddSuccess => _s(
+      'Device added to blacklist and blocked',
+      '设备已成功加入黑名单并被拦截',
+      'Đã thêm thiết bị vào blacklist và chặn');
+  String get msgBlacklistRemoveSuccess => _s('Device removed from blacklist',
+      '设备已从黑名单移除', 'Đã xóa thiết bị khỏi blacklist');
   String get btnNickname => _s('Nickname', '修改备注', 'Sửa Tên');
 
   // ── LAN OTA Update ──────────────────────────

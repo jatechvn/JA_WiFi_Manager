@@ -37,6 +37,7 @@ class Sidebar extends StatelessWidget {
     final s = context.strings;
     final clients = logic.connectedClients;
     final wl = logic.whitelist;
+    final bl = logic.blacklist;
     final isGuardActive = logic.isGuardActive;
     final isTransparent = AppConfig.enableTransparency;
 
@@ -164,6 +165,14 @@ class Sidebar extends StatelessWidget {
             isSelected: activeTab == 'WHITELIST',
             onTap: () => onTabSelected('WHITELIST'),
             badgeCount: wl.length,
+          ),
+          const SizedBox(height: 2),
+          SidebarNavItem(
+            icon: Icons.block_outlined,
+            label: s.tabBlacklist,
+            isSelected: activeTab == 'BLACKLIST',
+            onTap: () => onTabSelected('BLACKLIST'),
+            badgeCount: bl.length,
           ),
           const SizedBox(height: 2),
           SidebarNavItem(

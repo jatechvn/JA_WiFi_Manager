@@ -28,6 +28,44 @@ class WhitelistEntry {
       };
 }
 
+class BlacklistEntry {
+  final String mac;
+  String nickname;
+  final DateTime addedAt;
+  String reason;
+
+  BlacklistEntry({
+    required this.mac,
+    required this.nickname,
+    required this.addedAt,
+    this.reason = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'mac': mac,
+        'nickname': nickname,
+        'addedAt': addedAt.toIso8601String(),
+        'reason': reason,
+      };
+
+  factory BlacklistEntry.fromJson(Map<String, dynamic> json) {
+    DateTime parsedDate;
+    try {
+      parsedDate = json['addedAt'] != null
+          ? DateTime.parse(json['addedAt'].toString())
+          : DateTime.now();
+    } catch (_) {
+      parsedDate = DateTime.now();
+    }
+    return BlacklistEntry(
+      mac: normalizeMacAddress(json['mac']?.toString() ?? ''),
+      nickname: json['nickname']?.toString() ?? '',
+      addedAt: parsedDate,
+      reason: json['reason']?.toString() ?? '',
+    );
+  }
+}
+
 class ClientDevice {
   final String ip;
   final String mac;
@@ -36,6 +74,7 @@ class ClientDevice {
   final bool isAllowed;
   final bool isWhitelisted;
   final bool isBlocked;
+  final bool isBlacklisted;
 
   ClientDevice({
     required this.ip,
@@ -45,6 +84,7 @@ class ClientDevice {
     required this.isAllowed,
     required this.isWhitelisted,
     required this.isBlocked,
+    this.isBlacklisted = false,
   });
 }
 
@@ -79,6 +119,8 @@ class HotspotConfig {
 
 class WifiGuardLogic extends ChangeNotifier {
   List<WhitelistEntry> _whitelist = [];
+  List<BlacklistEntry> _blacklist = [];
+  Map<String, String> _customNicknames = {};
   List<ClientDevice> _connectedClients = [];
   final Map<String, String> _blockedIpToRealMac = {};
   final Set<String> _resolvingMacs = {};
@@ -93,9 +135,19 @@ class WifiGuardLogic extends ChangeNotifier {
   List<String> _logLines = [];
   HotspotConfig? _hotspotConfig;
 
-  WifiGuardLogic();
+  WifiGuardLogic({this.nativeCommand});
+
+  final Future<ProcessResult> Function(String, List<String>)? nativeCommand;
+
+  Future<ProcessResult> _runNative(String executable, List<String> arguments,
+          {bool runInShell = false}) =>
+      nativeCommand != null
+          ? nativeCommand!(executable, arguments)
+          : Process.run(executable, arguments, runInShell: runInShell);
 
   List<WhitelistEntry> get whitelist => _whitelist;
+  List<BlacklistEntry> get blacklist => _blacklist;
+  Map<String, String> get customNicknames => _customNicknames;
   List<ClientDevice> get connectedClients => _connectedClients;
   bool get isGuardActive => _isGuardActive;
   String get statusMessage => _statusMessage;
@@ -119,6 +171,24 @@ class WifiGuardLogic extends ChangeNotifier {
     notifyListeners();
   }
 
+  @visibleForTesting
+  void setBlacklistForTesting(List<BlacklistEntry> entries) {
+    _blacklist = List.unmodifiable(entries);
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void setWhitelistForTesting(List<WhitelistEntry> entries) {
+    _whitelist = List.unmodifiable(entries);
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void setCustomNicknamesForTesting(Map<String, String> nicknames) {
+    _customNicknames = Map.from(nicknames);
+    notifyListeners();
+  }
+
   HotspotConfig? get hotspotConfig => _hotspotConfig;
 
   /// Returns whitelisted entries matching the search query
@@ -129,6 +199,18 @@ class WifiGuardLogic extends ChangeNotifier {
         .where((e) =>
             e.mac.toLowerCase().contains(q) ||
             e.nickname.toLowerCase().contains(q))
+        .toList();
+  }
+
+  /// Returns blacklisted entries matching the search query
+  List<BlacklistEntry> get filteredBlacklist {
+    if (_searchQuery.trim().isEmpty) return _blacklist;
+    final q = _searchQuery.toLowerCase().trim();
+    return _blacklist
+        .where((e) =>
+            e.mac.toLowerCase().contains(q) ||
+            e.nickname.toLowerCase().contains(q) ||
+            e.reason.toLowerCase().contains(q))
         .toList();
   }
 
@@ -181,7 +263,9 @@ class WifiGuardLogic extends ChangeNotifier {
     _checkIntervalSeconds = int.tryParse(
             AppConfig.get('check_interval_seconds', defaultValue: '5')) ??
         5;
+    await loadDeviceNames();
     await loadWhitelist();
+    await loadBlacklist();
     await rebuildSessionStateFromLog();
     await readLogLines();
     await fetchHotspotConfig();
@@ -206,7 +290,7 @@ class WifiGuardLogic extends ChangeNotifier {
   Future<bool> getIsStartupEnabled() async {
     if (!Platform.isWindows) return false;
     try {
-      final result = await Process.run(
+      final result = await _runNative(
           'powershell',
           [
             '-NoProfile',
@@ -225,7 +309,7 @@ class WifiGuardLogic extends ChangeNotifier {
     try {
       if (enable) {
         final exePath = Platform.resolvedExecutable;
-        await Process.run(
+        await _runNative(
             'powershell',
             [
               '-NoProfile',
@@ -234,7 +318,7 @@ class WifiGuardLogic extends ChangeNotifier {
             ],
             runInShell: false);
       } else {
-        await Process.run(
+        await _runNative(
             'powershell',
             [
               '-NoProfile',
@@ -244,6 +328,42 @@ class WifiGuardLogic extends ChangeNotifier {
             runInShell: false);
       }
     } catch (_) {}
+  }
+
+  // ─── Universal Device Nicknames (device_names.json) ──────────────────────
+
+  Future<void> loadDeviceNames() async {
+    try {
+      final file = File(AppConfig.getDeviceNamesPath());
+      if (!file.existsSync()) {
+        _customNicknames = {};
+        return;
+      }
+      final content = file.readAsStringSync();
+      if (content.trim().isEmpty) {
+        _customNicknames = {};
+        return;
+      }
+      final decoded = jsonDecode(content);
+      if (decoded is Map<String, dynamic>) {
+        _customNicknames = decoded.map(
+          (k, v) => MapEntry(normalizeMacAddress(k), v.toString()),
+        );
+      }
+      notifyListeners();
+    } catch (e) {
+      _logger.warning('Failed to load device names: $e');
+      _customNicknames = {};
+    }
+  }
+
+  Future<void> saveDeviceNames() async {
+    try {
+      final file = File(AppConfig.getDeviceNamesPath());
+      file.writeAsStringSync(jsonEncode(_customNicknames));
+    } catch (e) {
+      _logger.severe('Failed to save device names: $e');
+    }
   }
 
   // ─── Whitelist Management ─────────────────────────────────────────────────
@@ -270,9 +390,12 @@ class WifiGuardLogic extends ChangeNotifier {
       final List<dynamic> list = decoded is List ? decoded : [decoded];
       _whitelist = list
           .map((item) {
+            final mac = normalizeMacAddress(item['mac']?.toString() ?? '');
+            final nick =
+                _customNicknames[mac] ?? item['nickname']?.toString() ?? '';
             return WhitelistEntry(
-              mac: normalizeMacAddress(item['mac']?.toString() ?? ''),
-              nickname: item['nickname']?.toString() ?? '',
+              mac: mac,
+              nickname: nick,
             );
           })
           .where((e) => e.mac.isNotEmpty)
@@ -295,6 +418,106 @@ class WifiGuardLogic extends ChangeNotifier {
     }
   }
 
+  // ─── Blacklist Management (blacklist.json) ────────────────────────────────
+
+  Future<void> loadBlacklist() async {
+    try {
+      final file = File(AppConfig.getBlacklistPath());
+      if (!file.existsSync()) {
+        _blacklist = [];
+        return;
+      }
+      final content = file.readAsStringSync();
+      if (content.trim().isEmpty) {
+        _blacklist = [];
+        return;
+      }
+      final decoded = jsonDecode(content);
+      final List<dynamic> list = decoded is List ? decoded : [decoded];
+      _blacklist = list
+          .map((item) {
+            final entry = BlacklistEntry.fromJson(item as Map<String, dynamic>);
+            if (_customNicknames.containsKey(entry.mac) &&
+                _customNicknames[entry.mac]!.isNotEmpty) {
+              entry.nickname = _customNicknames[entry.mac]!;
+            }
+            return entry;
+          })
+          .where((e) => e.mac.isNotEmpty)
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      _logger.warning('Failed to load blacklist: $e');
+      _blacklist = [];
+    }
+  }
+
+  Future<void> saveBlacklist() async {
+    try {
+      final file = File(AppConfig.getBlacklistPath());
+      final jsonList = _blacklist.map((e) => e.toJson()).toList();
+      file.writeAsStringSync(jsonEncode(jsonList));
+      notifyListeners();
+    } catch (e) {
+      _logger.severe('Failed to save blacklist: $e');
+    }
+  }
+
+  bool isWhitelisted(String mac) {
+    final normalized = normalizeMacAddress(mac);
+    return _whitelist.any((e) => e.mac == normalized);
+  }
+
+  bool isBlacklisted(String mac) {
+    final normalized = normalizeMacAddress(mac);
+    return _blacklist.any((e) => e.mac == normalized);
+  }
+
+  WhitelistEntry? _getWhitelistEntry(String mac) {
+    final normalized = normalizeMacAddress(mac);
+    for (final entry in _whitelist) {
+      if (entry.mac == normalized) return entry;
+    }
+    return null;
+  }
+
+  BlacklistEntry? _getBlacklistEntry(String mac) {
+    final normalized = normalizeMacAddress(mac);
+    for (final entry in _blacklist) {
+      if (entry.mac == normalized) return entry;
+    }
+    return null;
+  }
+
+  /// Get effective display nickname for a device
+  String getEffectiveNickname(String mac, {String? defaultName}) {
+    final normalized = normalizeMacAddress(mac);
+    if (_customNicknames.containsKey(normalized) &&
+        _customNicknames[normalized]!.isNotEmpty) {
+      return _customNicknames[normalized]!;
+    }
+    final wl = _getWhitelistEntry(normalized);
+    if (wl != null &&
+        wl.nickname.isNotEmpty &&
+        !wl.nickname.startsWith('Device_')) {
+      return wl.nickname;
+    }
+    final bl = _getBlacklistEntry(normalized);
+    if (bl != null &&
+        bl.nickname.isNotEmpty &&
+        !bl.nickname.startsWith('Device_')) {
+      return bl.nickname;
+    }
+    final cached = _resolvedHostnames[normalized];
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+    return defaultName ??
+        (wl?.nickname ??
+            bl?.nickname ??
+            'Device_${normalized.replaceAll('-', '').substring(8)}');
+  }
+
   Future<String> _resolveHostname(String ip) async {
     if (ip.isEmpty) return '';
 
@@ -310,7 +533,7 @@ class WifiGuardLogic extends ChangeNotifier {
 
     // 2. Try NetBIOS lookup via nbtstat -A
     try {
-      final result = await Process.run('nbtstat', ['-A', ip])
+      final result = await _runNative('nbtstat', ['-A', ip])
           .timeout(const Duration(milliseconds: 1500));
       final output = result.stdout.toString();
       for (var line in output.split('\n')) {
@@ -328,7 +551,7 @@ class WifiGuardLogic extends ChangeNotifier {
 
     // 3. Try PowerShell lookup as a fallback
     try {
-      final result = await Process.run(
+      final result = await _runNative(
               'powershell',
               [
                 '-NoProfile',
@@ -357,19 +580,21 @@ class WifiGuardLogic extends ChangeNotifier {
       if (resolved.isNotEmpty) {
         _resolvedHostnames[normalized] = resolved;
 
-        // Find and update in whitelist
-        for (final entry in _whitelist) {
-          if (normalizeMacAddress(entry.mac) == normalized) {
-            if (entry.nickname.isEmpty ||
-                entry.nickname.startsWith('Device_')) {
-              final oldName = entry.nickname;
-              entry.nickname = resolved;
-              await saveWhitelist();
-              await writeLog(
-                  'Auto-resolved client nickname: MAC=$mac ($oldName -> $resolved)',
-                  level: 'OK');
+        // If user hasn't explicitly set a custom nickname, auto-update entry in whitelist
+        if (!_customNicknames.containsKey(normalized)) {
+          for (final entry in _whitelist) {
+            if (normalizeMacAddress(entry.mac) == normalized) {
+              if (entry.nickname.isEmpty ||
+                  entry.nickname.startsWith('Device_')) {
+                final oldName = entry.nickname;
+                entry.nickname = resolved;
+                await saveWhitelist();
+                await writeLog(
+                    'Auto-resolved client nickname: MAC=$mac ($oldName -> $resolved)',
+                    level: 'OK');
+              }
+              break;
             }
-            break;
           }
         }
         notifyListeners();
@@ -383,34 +608,77 @@ class WifiGuardLogic extends ChangeNotifier {
     final normalized = normalizeMacAddress(mac);
     if (!isValidMacAddress(normalized)) return false;
 
-    // Check if exists
+    // Mutual exclusion: Remove from blacklist if present
+    if (isBlacklisted(normalized)) {
+      _blacklist.removeWhere((e) => e.mac == normalized);
+      await saveBlacklist();
+      _logger.info('Removed from blacklist due to whitelisting: $normalized');
+    }
+
+    // Check if already in whitelist
     final exists = _whitelist.any((e) => e.mac == normalized);
     if (exists) return false;
 
     String finalNickname = nickname.trim();
     if (finalNickname.isEmpty) {
-      // Check if currently connected
-      ClientDevice? connected;
-      for (final c in _connectedClients) {
-        if (normalizeMacAddress(c.mac) == normalized) {
-          connected = c;
-          break;
+      if (_customNicknames.containsKey(normalized) &&
+          _customNicknames[normalized]!.isNotEmpty) {
+        finalNickname = _customNicknames[normalized]!;
+      } else {
+        // Check if currently connected
+        ClientDevice? connected;
+        for (final c in _connectedClients) {
+          if (normalizeMacAddress(c.mac) == normalized) {
+            connected = c;
+            break;
+          }
+        }
+
+        if (connected != null) {
+          final resolved = await _resolveHostname(connected.ip);
+          finalNickname = resolved.isNotEmpty
+              ? resolved
+              : 'Device_${normalized.replaceAll('-', '').substring(8)}';
+        } else {
+          finalNickname =
+              'Device_${normalized.replaceAll('-', '').substring(8)}';
         }
       }
-
-      if (connected != null) {
-        final resolved = await _resolveHostname(connected.ip);
-        finalNickname = resolved.isNotEmpty
-            ? resolved
-            : 'Device_${normalized.replaceAll('-', '').substring(8)}';
-      } else {
-        finalNickname = 'Device_${normalized.replaceAll('-', '').substring(8)}';
-      }
+    } else {
+      // Save explicitly provided nickname
+      _customNicknames[normalized] = finalNickname;
+      await saveDeviceNames();
     }
 
     _whitelist.add(WhitelistEntry(mac: normalized, nickname: finalNickname));
     await saveWhitelist();
     _logger.info('Added to whitelist: $normalized ($finalNickname)');
+
+    // Update in-memory connected clients immediately
+    _connectedClients = _connectedClients.map((c) {
+      if (c.mac == normalized) {
+        return ClientDevice(
+          ip: c.ip,
+          mac: c.mac,
+          state: c.state,
+          nickname: finalNickname,
+          isAllowed: true,
+          isWhitelisted: true,
+          isBlocked: false,
+          isBlacklisted: false,
+        );
+      }
+      return c;
+    }).toList();
+
+    // Refresh connected clients if guard is active
+    if (_isGuardActive) {
+      await _runGuardCheck();
+    } else {
+      await _unblockDeviceIfBlocked(normalized);
+      notifyListeners();
+    }
+
     return true;
   }
 
@@ -419,26 +687,376 @@ class WifiGuardLogic extends ChangeNotifier {
     _whitelist.removeWhere((e) => e.mac == normalized);
     await saveWhitelist();
     _logger.info('Removed from whitelist: $normalized');
+
+    // Update in-memory connected clients immediately
+    _connectedClients = _connectedClients.map((c) {
+      if (c.mac == normalized) {
+        return ClientDevice(
+          ip: c.ip,
+          mac: c.mac,
+          state: c.state,
+          nickname: c.nickname,
+          isAllowed: false,
+          isWhitelisted: false,
+          isBlocked: c.isBlacklisted,
+          isBlacklisted: c.isBlacklisted,
+        );
+      }
+      return c;
+    }).toList();
+
+    if (_isGuardActive) {
+      await _runGuardCheck();
+    } else {
+      notifyListeners();
+    }
   }
 
-  Future<void> editDeviceNickname(String mac, String newNickname) async {
+  Future<bool> addBlacklistDevice(String mac, String nickname,
+      {String reason = ''}) async {
     final normalized = normalizeMacAddress(mac);
-    for (final entry in _whitelist) {
-      if (entry.mac == normalized) {
-        entry.nickname = newNickname;
+    if (!isValidMacAddress(normalized)) return false;
+
+    // Mutual exclusion: Remove from whitelist if present
+    if (isWhitelisted(normalized)) {
+      _whitelist.removeWhere((e) => e.mac == normalized);
+      await saveWhitelist();
+      _logger.info('Removed from whitelist due to blacklisting: $normalized');
+    }
+
+    // Check if already in blacklist
+    final exists = _blacklist.any((e) => e.mac == normalized);
+    if (exists) {
+      if (reason.isNotEmpty || nickname.isNotEmpty) {
+        for (final entry in _blacklist) {
+          if (entry.mac == normalized) {
+            if (reason.isNotEmpty) entry.reason = reason;
+            if (nickname.isNotEmpty) {
+              entry.nickname = nickname.trim();
+              _customNicknames[normalized] = nickname.trim();
+              await saveDeviceNames();
+            }
+            break;
+          }
+        }
+        await saveBlacklist();
+      }
+      return false;
+    }
+
+    String finalNickname = nickname.trim();
+    if (finalNickname.isEmpty) {
+      finalNickname = getEffectiveNickname(normalized);
+    } else {
+      _customNicknames[normalized] = finalNickname;
+      await saveDeviceNames();
+    }
+
+    _blacklist.add(BlacklistEntry(
+      mac: normalized,
+      nickname: finalNickname,
+      addedAt: DateTime.now(),
+      reason: reason.trim(),
+    ));
+    await saveBlacklist();
+    _logger.info('Added to blacklist: $normalized ($finalNickname)');
+
+    // Update in-memory connected clients immediately
+    _connectedClients = _connectedClients.map((c) {
+      if (c.mac == normalized) {
+        return ClientDevice(
+          ip: c.ip,
+          mac: c.mac,
+          state: c.state,
+          nickname: finalNickname,
+          isAllowed: false,
+          isWhitelisted: false,
+          isBlocked: true,
+          isBlacklisted: true,
+        );
+      }
+      return c;
+    }).toList();
+    notifyListeners();
+
+    // Immediately enforce block if device is connected
+    await _enforceBlacklistBlock(normalized);
+
+    return true;
+  }
+
+  Future<void> removeBlacklistDevice(String mac) async {
+    final normalized = normalizeMacAddress(mac);
+    _blacklist.removeWhere((e) => e.mac == normalized);
+    await saveBlacklist();
+    _logger.info('Removed from blacklist: $normalized');
+
+    // Update in-memory connected clients immediately
+    _connectedClients = _connectedClients.map((c) {
+      if (c.mac == normalized) {
+        final whitelisted = isWhitelisted(normalized);
+        return ClientDevice(
+          ip: c.ip,
+          mac: c.mac,
+          state: c.state,
+          nickname: c.nickname,
+          isAllowed: whitelisted,
+          isWhitelisted: whitelisted,
+          isBlocked: false,
+          isBlacklisted: false,
+        );
+      }
+      return c;
+    }).toList();
+
+    // If device is connected and guard is active, run guard check (will handle unblocking or intruder status)
+    if (_isGuardActive) {
+      await _runGuardCheck();
+    } else {
+      // Unblock directly if not guard active
+      await _unblockDeviceIfBlocked(normalized);
+      notifyListeners();
+    }
+  }
+
+  Future<bool> moveToWhitelist(String mac) async {
+    final normalized = normalizeMacAddress(mac);
+    BlacklistEntry? entry;
+    for (final e in _blacklist) {
+      if (e.mac == normalized) {
+        entry = e;
         break;
       }
     }
-    await saveWhitelist();
-    _logger.info('Updated nickname: $normalized -> $newNickname');
+    final name = entry?.nickname ?? getEffectiveNickname(normalized);
+    await removeBlacklistDevice(normalized);
+    return await addWhitelistDevice(normalized, name);
   }
 
-  WhitelistEntry? _getWhitelistEntry(String mac) {
+  Future<bool> moveToBlacklist(String mac, {String reason = ''}) async {
     final normalized = normalizeMacAddress(mac);
-    for (final entry in _whitelist) {
-      if (entry.mac == normalized) return entry;
+    WhitelistEntry? entry;
+    for (final e in _whitelist) {
+      if (e.mac == normalized) {
+        entry = e;
+        break;
+      }
     }
-    return null;
+    final name = entry?.nickname ?? getEffectiveNickname(normalized);
+    await removeWhitelistDevice(normalized);
+    return await addBlacklistDevice(normalized, name, reason: reason);
+  }
+
+  /// Universal device rename across Whitelist, Blacklist, and Connected Clients.
+  /// Ghi nhớ tên thiết bị vĩnh viễn ở mọi vị trí theo yêu cầu người dùng.
+  Future<void> editDeviceNickname(String mac, String newNickname) async {
+    final normalized = normalizeMacAddress(mac);
+    final trimmedName = newNickname.trim();
+    if (trimmedName.isEmpty) return;
+
+    // 1. Always record in custom nicknames map (persisted to device_names.json)
+    _customNicknames[normalized] = trimmedName;
+    await saveDeviceNames();
+
+    // 2. Sync to whitelist if present
+    bool inWhitelist = false;
+    for (final entry in _whitelist) {
+      if (entry.mac == normalized) {
+        entry.nickname = trimmedName;
+        inWhitelist = true;
+        break;
+      }
+    }
+    if (inWhitelist) {
+      await saveWhitelist();
+    }
+
+    // 3. Sync to blacklist if present
+    bool inBlacklist = false;
+    for (final entry in _blacklist) {
+      if (entry.mac == normalized) {
+        entry.nickname = trimmedName;
+        inBlacklist = true;
+        break;
+      }
+    }
+    if (inBlacklist) {
+      await saveBlacklist();
+    }
+
+    // 4. Update in-memory connected clients immediately
+    _connectedClients = _connectedClients.map((c) {
+      if (c.mac == normalized) {
+        return ClientDevice(
+          ip: c.ip,
+          mac: c.mac,
+          state: c.state,
+          nickname: trimmedName,
+          isAllowed: c.isAllowed,
+          isWhitelisted: c.isWhitelisted,
+          isBlocked: c.isBlocked,
+          isBlacklisted: c.isBlacklisted,
+        );
+      }
+      return c;
+    }).toList();
+
+    notifyListeners();
+    _logger.info('Updated nickname: $normalized -> $trimmedName');
+  }
+
+  Future<void> _enforceBlacklistBlock(String mac) async {
+    if (!Platform.isWindows) return;
+    final normalized = normalizeMacAddress(mac);
+
+    // Find if connected
+    ClientDevice? connected;
+    for (final c in _connectedClients) {
+      if (c.mac == normalized) {
+        connected = c;
+        break;
+      }
+    }
+
+    if (connected != null && connected.ip.isNotEmpty) {
+      final ip = connected.ip;
+      await writeLog(
+          'BLACKLIST: MAC=$normalized  IP=$ip --> Blocking immediately...',
+          level: 'WARN');
+
+      try {
+        final combinedResult = await _runNative(
+            'powershell',
+            [
+              '-NoProfile',
+              '-ExecutionPolicy',
+              'Bypass',
+              '-Command',
+              '\$ipEntry = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { \$_.IPAddress -like "192.168.137.*" } | Select-Object -First 1; if (\$ipEntry) { \$ifIndex = \$ipEntry.InterfaceIndex; \$adapterName = (Get-NetAdapter -InterfaceIndex \$ifIndex | Select-Object -ExpandProperty Name -First 1); [PSCustomObject]@{ InterfaceIndex = \$ifIndex; AdapterName = \$adapterName } | ConvertTo-Json }'
+            ],
+            runInShell: false);
+
+        final out = combinedResult.stdout.toString().trim();
+        if (out.isNotEmpty && out.startsWith('{')) {
+          final decoded = jsonDecode(out);
+          final ifIndex = decoded['InterfaceIndex'] as int?;
+          final adapterName = decoded['AdapterName']?.toString() ?? '';
+
+          if (ifIndex != null) {
+            // Poison ARP table
+            await _runNative(
+                'powershell',
+                [
+                  '-NoProfile',
+                  '-Command',
+                  'Remove-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $ip -Confirm:\$false -ErrorAction SilentlyContinue; New-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $ip -LinkLayerAddress "00-00-00-00-00-01" -State Permanent -ErrorAction SilentlyContinue'
+                ],
+                runInShell: false);
+
+            // Add Firewall blocking rule
+            final ruleTag = ip.replaceAll('.', '-');
+            await _runNative(
+                'powershell',
+                [
+                  '-NoProfile',
+                  '-Command',
+                  'New-NetFirewallRule -DisplayName "WiFiGuard_${ruleTag}_IN" -Direction Inbound -Action Block -RemoteAddress $ip -InterfaceAlias "$adapterName" -Protocol Any -Enabled True -ErrorAction SilentlyContinue'
+                ],
+                runInShell: false);
+
+            _blockedIpToRealMac[ip] = normalized;
+            _connectedClients = _connectedClients
+                .map((client) => client.mac == normalized
+                    ? ClientDevice(
+                        ip: client.ip,
+                        mac: client.mac,
+                        state: client.state,
+                        nickname: client.nickname,
+                        isAllowed: false,
+                        isWhitelisted: false,
+                        isBlocked: true,
+                        isBlacklisted: true,
+                      )
+                    : client)
+                .toList();
+            await writeLog(
+                'BLOCKED BLACKLISTED: MAC=$normalized  IP=$ip  [ARP Poison + Firewall IN]',
+                level: 'BLOCK');
+          }
+        }
+      } catch (e) {
+        _logger.warning('Failed to block blacklisted device $normalized: $e');
+      }
+    }
+
+    if (_isGuardActive) {
+      await _runGuardCheck();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _unblockDeviceIfBlocked(String mac) async {
+    if (!Platform.isWindows) return;
+    final normalized = normalizeMacAddress(mac);
+
+    String? targetIp;
+    _blockedIpToRealMac.forEach((ip, m) {
+      if (m == normalized) targetIp = ip;
+    });
+
+    if (targetIp == null) {
+      for (final c in _connectedClients) {
+        if (c.mac == normalized && c.isBlocked) {
+          targetIp = c.ip;
+          break;
+        }
+      }
+    }
+
+    if (targetIp != null && targetIp!.isNotEmpty) {
+      try {
+        final combinedResult = await _runNative(
+            'powershell',
+            [
+              '-NoProfile',
+              '-ExecutionPolicy',
+              'Bypass',
+              '-Command',
+              '\$ipEntry = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { \$_.IPAddress -like "192.168.137.*" } | Select-Object -First 1; if (\$ipEntry) { \$ipEntry.InterfaceIndex }'
+            ],
+            runInShell: false);
+        final ifIndexStr = combinedResult.stdout.toString().trim();
+        final ifIndex = int.tryParse(ifIndexStr);
+
+        if (ifIndex != null) {
+          await _runNative(
+              'powershell',
+              [
+                '-NoProfile',
+                '-Command',
+                'Remove-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $targetIp -Confirm:\$false -ErrorAction SilentlyContinue'
+              ],
+              runInShell: false);
+
+          final ruleTag = targetIp!.replaceAll('.', '-');
+          await _runNative(
+              'powershell',
+              [
+                '-NoProfile',
+                '-Command',
+                'Remove-NetFirewallRule -DisplayName "WiFiGuard_${ruleTag}_IN" -ErrorAction SilentlyContinue'
+              ],
+              runInShell: false);
+
+          _blockedIpToRealMac.remove(targetIp);
+          await writeLog('UNBLOCKED: MAC=$normalized  IP=$targetIp',
+              level: 'OK');
+        }
+      } catch (e) {
+        _logger.warning('Failed to unblock device $normalized: $e');
+      }
+    }
   }
 
   // ─── Guard Controls (Dart Native Loop) ────────────────────────────────────
@@ -488,10 +1106,13 @@ class WifiGuardLogic extends ChangeNotifier {
     try {
       await writeLog('====== WiFi Guard stopped and cleaned ======',
           level: 'WARN');
-      await _cleanupOldRules();
-
-      _blockedIpToRealMac.clear();
-      _connectedClients.clear();
+      final transientMacs = _blockedIpToRealMac.values
+          .where((mac) => !isBlacklisted(mac))
+          .toSet();
+      for (final mac in transientMacs) {
+        await _unblockDeviceIfBlocked(mac);
+      }
+      await scanConnectedClients();
       _statusMessage = 'Guard is inactive.';
       notifyListeners();
     } catch (e) {
@@ -506,7 +1127,7 @@ class WifiGuardLogic extends ChangeNotifier {
 
     try {
       // Combined command: Get IP, index, adapter name, and neighbors in one single PowerShell call
-      final combinedResult = await Process.run(
+      final combinedResult = await _runNative(
           'powershell',
           [
             '-NoProfile',
@@ -543,6 +1164,7 @@ class WifiGuardLogic extends ChangeNotifier {
       }
 
       final wlMacs = _whitelist.map((e) => e.mac.toUpperCase()).toSet();
+      final blMacs = _blacklist.map((e) => e.mac.toUpperCase()).toSet();
       final List<ClientDevice> currentClientsList = [];
 
       for (final item in jsonList) {
@@ -561,13 +1183,57 @@ class WifiGuardLogic extends ChangeNotifier {
           realMac = _blockedIpToRealMac[ip] ?? 'UNKNOWN-MAC';
         }
 
-        final isWhitelisted = wlMacs.contains(realMac);
+        final isBlacklistedDevice = blMacs.contains(realMac);
+        final isWhitelistedDevice =
+            !isBlacklistedDevice && wlMacs.contains(realMac);
 
-        if (isWhitelisted) {
+        if (isBlacklistedDevice) {
+          // BLACKLISTED DEVICE: MUST ALWAYS BE BLOCKED
+          if (_blockedIpToRealMac.containsKey(ip) || isPoisoned) {
+            // Re-enforce poison every iteration
+            await _runNative(
+                'powershell',
+                [
+                  '-NoProfile',
+                  '-Command',
+                  'Remove-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $ip -Confirm:\$false -ErrorAction SilentlyContinue; New-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $ip -LinkLayerAddress "00-00-00-00-00-01" -State Permanent -ErrorAction SilentlyContinue'
+                ],
+                runInShell: false);
+          } else {
+            await writeLog('BLACKLISTED: MAC=$realMac  IP=$ip --> Blocking...',
+                level: 'WARN');
+
+            // 1. Poison ARP table
+            await _runNative(
+                'powershell',
+                [
+                  '-NoProfile',
+                  '-Command',
+                  'Remove-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $ip -Confirm:\$false -ErrorAction SilentlyContinue; New-NetNeighbor -InterfaceIndex $ifIndex -IPAddress $ip -LinkLayerAddress "00-00-00-00-00-01" -State Permanent -ErrorAction SilentlyContinue'
+                ],
+                runInShell: false);
+
+            // 2. Add Firewall blocking rule
+            final ruleTag = ip.replaceAll('.', '-');
+            await _runNative(
+                'powershell',
+                [
+                  '-NoProfile',
+                  '-Command',
+                  'New-NetFirewallRule -DisplayName "WiFiGuard_${ruleTag}_IN" -Direction Inbound -Action Block -RemoteAddress $ip -InterfaceAlias "$adapterName" -Protocol Any -Enabled True -ErrorAction SilentlyContinue'
+                ],
+                runInShell: false);
+
+            _blockedIpToRealMac[ip] = realMac;
+            await writeLog(
+                'BLOCKED: MAC=$realMac  IP=$ip  [Blacklist - ARP Poison + Firewall IN]',
+                level: 'BLOCK');
+          }
+        } else if (isWhitelistedDevice) {
           // If whitelisted but marked blocked in system, we must UNBLOCK it!
           if (isPoisoned || _blockedIpToRealMac.containsKey(ip)) {
             // Remove ARP poisoning
-            await Process.run(
+            await _runNative(
                 'powershell',
                 [
                   '-NoProfile',
@@ -578,7 +1244,7 @@ class WifiGuardLogic extends ChangeNotifier {
 
             // Remove Firewall Rule
             final ruleTag = ip.replaceAll('.', '-');
-            await Process.run(
+            await _runNative(
                 'powershell',
                 [
                   '-NoProfile',
@@ -597,7 +1263,7 @@ class WifiGuardLogic extends ChangeNotifier {
           // Intruder detected!
           if (_blockedIpToRealMac.containsKey(ip) || isPoisoned) {
             // Re-enforce poison every iteration
-            await Process.run(
+            await _runNative(
                 'powershell',
                 [
                   '-NoProfile',
@@ -611,7 +1277,7 @@ class WifiGuardLogic extends ChangeNotifier {
                 level: 'WARN');
 
             // 1. Poison ARP table
-            await Process.run(
+            await _runNative(
                 'powershell',
                 [
                   '-NoProfile',
@@ -622,7 +1288,7 @@ class WifiGuardLogic extends ChangeNotifier {
 
             // 2. Add Firewall blocking rule
             final ruleTag = ip.replaceAll('.', '-');
-            await Process.run(
+            await _runNative(
                 'powershell',
                 [
                   '-NoProfile',
@@ -652,31 +1318,25 @@ class WifiGuardLogic extends ChangeNotifier {
           stateLabel = 'Probe';
         }
 
-        final wlEntry = _getWhitelistEntry(realMac);
         final cachedHostname = _resolvedHostnames[realMac] ?? '';
         if (cachedHostname.isEmpty) {
           _resolveAndSetNickname(realMac, ip);
         }
 
-        String displayName = '';
-        if (wlEntry != null &&
-            wlEntry.nickname.isNotEmpty &&
-            !wlEntry.nickname.startsWith('Device_')) {
-          displayName = wlEntry.nickname;
-        } else {
-          displayName = cachedHostname.isNotEmpty
-              ? cachedHostname
-              : (wlEntry?.nickname ?? '');
-        }
+        final displayName =
+            getEffectiveNickname(realMac, defaultName: cachedHostname);
 
         currentClientsList.add(ClientDevice(
           ip: ip,
           mac: realMac,
           state: stateLabel,
           nickname: displayName,
-          isAllowed: isWhitelisted,
-          isWhitelisted: isWhitelisted,
-          isBlocked: isPoisoned || _blockedIpToRealMac.containsKey(ip),
+          isAllowed: isWhitelistedDevice,
+          isWhitelisted: isWhitelistedDevice,
+          isBlocked: isPoisoned ||
+              _blockedIpToRealMac.containsKey(ip) ||
+              isBlacklistedDevice,
+          isBlacklisted: isBlacklistedDevice,
         ));
       }
 
@@ -714,6 +1374,10 @@ class WifiGuardLogic extends ChangeNotifier {
     List<String> arguments, {
     Duration timeout = const Duration(seconds: 3),
   }) async {
+    if (nativeCommand != null) {
+      await nativeCommand!(executable, arguments);
+      return;
+    }
     final process = await Process.start(executable, arguments);
     try {
       await process.exitCode.timeout(timeout);
@@ -729,7 +1393,7 @@ class WifiGuardLogic extends ChangeNotifier {
     if (!Platform.isWindows) return;
 
     try {
-      final combinedResult = await Process.run(
+      final combinedResult = await _runNative(
           'powershell',
           [
             '-NoProfile',
@@ -772,23 +1436,19 @@ class WifiGuardLogic extends ChangeNotifier {
           realMac = _blockedIpToRealMac[ip] ?? 'UNKNOWN-MAC';
         }
 
-        final wlEntry = _getWhitelistEntry(realMac);
+        final isBlacklistedDevice = isBlacklisted(realMac);
+        final isWhitelistedDevice =
+            !isBlacklistedDevice && isWhitelisted(realMac);
+
         final cachedHostname = _resolvedHostnames[realMac] ?? '';
         if (cachedHostname.isEmpty) {
           _resolveAndSetNickname(realMac, ip);
         }
 
-        String displayName = '';
-        if (wlEntry != null &&
-            wlEntry.nickname.isNotEmpty &&
-            !wlEntry.nickname.startsWith('Device_')) {
-          displayName = wlEntry.nickname;
-        } else {
-          displayName = cachedHostname.isNotEmpty
-              ? cachedHostname
-              : (wlEntry?.nickname ?? '');
-        }
-        final isAllowed = wlEntry != null && !isPoisoned;
+        final displayName =
+            getEffectiveNickname(realMac, defaultName: cachedHostname);
+        final isAllowed =
+            isWhitelistedDevice && !isPoisoned && !isBlacklistedDevice;
 
         String stateLabel = 'Unknown';
         if (stateCode == '6') {
@@ -809,12 +1469,16 @@ class WifiGuardLogic extends ChangeNotifier {
           state: stateLabel,
           nickname: displayName,
           isAllowed: isAllowed,
-          isWhitelisted: wlEntry != null,
+          isWhitelisted: isWhitelistedDevice,
           isBlocked: isPoisoned || _blockedIpToRealMac.containsKey(ip),
+          isBlacklisted: isBlacklistedDevice,
         ));
       }
 
       _connectedClients = _dedupeByMac(list);
+      for (final client in List<ClientDevice>.from(_connectedClients)) {
+        if (client.isBlacklisted) await _enforceBlacklistBlock(client.mac);
+      }
       notifyListeners();
     } catch (e) {
       _logger.warning('Scan connected clients failed: $e');
@@ -1034,7 +1698,7 @@ class WifiGuardLogic extends ChangeNotifier {
   Future<void> fetchHotspotConfig() async {
     if (!Platform.isWindows) return;
     try {
-      final result = await Process.run(
+      final result = await _runNative(
           'powershell',
           [
             '-NoProfile',
@@ -1125,7 +1789,7 @@ $svc = Get-Service -Name SharedAccess -ErrorAction SilentlyContinue
 if ($svc) { $svc.Status.ToString() } else { 'Unknown' }
 ''';
 
-      final result = await Process.run(
+      final result = await _runNative(
         'powershell',
         [
           '-NoProfile',
@@ -1193,7 +1857,7 @@ if ($svc) { $svc.Status.ToString() } else { 'Unknown' }
     final safeSsid = _escapePowerShellSingleQuoted(ssid);
     final safePassphrase = _escapePowerShellSingleQuoted(passphrase);
     try {
-      final result = await Process.run(
+      final result = await _runNative(
           'powershell',
           [
             '-NoProfile',
@@ -1267,7 +1931,7 @@ if ($svc) { $svc.Status.ToString() } else { 'Unknown' }
       }
 
       final action = enable ? "StartTetheringAsync" : "StopTetheringAsync";
-      final result = await Process.run(
+      final result = await _runNative(
           'powershell',
           [
             '-NoProfile',
@@ -1361,7 +2025,7 @@ if ($svc) { $svc.Status.ToString() } else { 'Unknown' }
       // 3. Reset network interface configurations (Winsock and DNS flush)
       await writeLog('Đang đặt lại Winsock và xoá bộ nhớ đệm DNS...',
           level: 'INFO');
-      final networkResult = await Process.run(
+      final networkResult = await _runNative(
           'powershell',
           [
             '-NoProfile',

@@ -13,7 +13,9 @@ import 'styles.dart';
 import 'bento_widgets.dart';
 
 bool _isBlockedForDisplay(ClientDevice client, bool isGuardActive) {
-  return client.isBlocked || (isGuardActive && !client.isWhitelisted);
+  return client.isBlocked ||
+      client.isBlacklisted ||
+      (isGuardActive && !client.isWhitelisted);
 }
 
 class MonitorTab extends StatefulWidget {
@@ -830,21 +832,26 @@ class _BentoDeviceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWhitelisted = client.isWhitelisted;
+    final isBlacklisted = client.isBlacklisted;
     final isBlocked = _isBlockedForDisplay(client, isGuardActive);
     final displayName =
         DeviceTypeHelper.getDisplayName(client.nickname, client.mac);
     final deviceIcon =
         DeviceTypeHelper.getDeviceIcon(client.nickname, client.ip);
 
-    final statusColor = isWhitelisted && !client.isBlocked
-        ? colors.accentEmerald
-        : (isBlocked ? colors.accentRose : colors.accentAmber);
+    final statusColor = isBlacklisted
+        ? colors.accentRose
+        : (isWhitelisted && !client.isBlocked
+            ? colors.accentEmerald
+            : (isBlocked ? colors.accentRose : colors.accentAmber));
 
-    final statusLabel = isWhitelisted && !client.isBlocked
-        ? (isVi ? 'ĐÃ DUYỆT' : (isZh ? '已允许' : 'ALLOWED'))
-        : (isBlocked
-            ? (isVi ? 'BỊ CHẶN' : (isZh ? '已拦截' : 'BLOCKED'))
-            : (isVi ? 'CHỜ DUYỆT' : (isZh ? '待处理' : 'PENDING')));
+    final statusLabel = isBlacklisted
+        ? (isVi ? 'BỊ CẤM' : (isZh ? '黑名单' : 'BLACKLISTED'))
+        : (isWhitelisted && !client.isBlocked
+            ? (isVi ? 'ĐÃ DUYỆT' : (isZh ? '已允许' : 'ALLOWED'))
+            : (isBlocked
+                ? (isVi ? 'BỊ CHẶN' : (isZh ? '已拦截' : 'BLOCKED'))
+                : (isVi ? 'CHỜ DUYỆT' : (isZh ? '待处理' : 'PENDING'))));
 
     return BentoCard(
       colors: colors,
@@ -997,7 +1004,38 @@ class _BentoDeviceCard extends StatelessWidget {
           const SizedBox(width: 10),
 
           // Primary inline action pill
-          if (isWhitelisted && !client.isBlocked)
+          if (client.isBlacklisted)
+            InkWell(
+              onTap: () => onQuickWhitelist(client),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: colors.accentEmerald.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: colors.accentEmerald.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified_user_rounded,
+                        size: 12, color: colors.accentEmerald),
+                    const SizedBox(width: 5),
+                    Text(
+                      isVi ? 'Gỡ cấm' : (isZh ? '解除黑名单' : 'Unblock'),
+                      style: TextStyle(
+                        color: colors.accentEmerald,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (isWhitelisted && !client.isBlocked)
             InkWell(
               onTap: () => onQuickBlock(client),
               borderRadius: BorderRadius.circular(6),
@@ -1163,10 +1201,13 @@ class _CompactDeviceTable extends StatelessWidget {
               itemBuilder: (context, index) {
                 final client = filtered[index];
                 final isWhitelisted = client.isWhitelisted;
+                final isBlacklisted = client.isBlacklisted;
                 final isBlocked = _isBlockedForDisplay(client, isGuardActive);
-                final statusColor = isWhitelisted && !client.isBlocked
-                    ? colors.accentEmerald
-                    : (isBlocked ? colors.accentRose : colors.accentAmber);
+                final statusColor = isBlacklisted
+                    ? colors.accentRose
+                    : (isWhitelisted && !client.isBlocked
+                        ? colors.accentEmerald
+                        : (isBlocked ? colors.accentRose : colors.accentAmber));
 
                 return Padding(
                   key: ValueKey(client.mac),
@@ -1222,11 +1263,13 @@ class _CompactDeviceTable extends StatelessWidget {
                       SizedBox(
                         width: 110,
                         child: PillBadge(
-                          label: isWhitelisted && !client.isBlocked
-                              ? (isVi ? 'ĐÃ DUYỆT' : 'ALLOWED')
-                              : (isBlocked
-                                  ? (isVi ? 'BỊ CHẶN' : 'BLOCKED')
-                                  : (isVi ? 'CHỜ DUYỆT' : 'PENDING')),
+                          label: isBlacklisted
+                              ? (isVi ? 'BỊ CẤM' : 'BLACKLISTED')
+                              : (isWhitelisted && !client.isBlocked
+                                  ? (isVi ? 'ĐÃ DUYỆT' : 'ALLOWED')
+                                  : (isBlocked
+                                      ? (isVi ? 'BỊ CHẶN' : 'BLOCKED')
+                                      : (isVi ? 'CHỜ DUYỆT' : 'PENDING'))),
                           color: statusColor,
                           bg: statusColor.withValues(alpha: 0.12),
                           border: statusColor.withValues(alpha: 0.35),
@@ -1238,25 +1281,36 @@ class _CompactDeviceTable extends StatelessWidget {
                         width: 80,
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: isWhitelisted && !client.isBlocked
+                          child: isBlacklisted
                               ? IconButton(
-                                  icon: Icon(Icons.block_flipped,
-                                      size: 16, color: colors.accentRose),
-                                  tooltip: 'Block',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 28, minHeight: 28),
-                                  onPressed: () => onQuickBlock(client),
-                                )
-                              : IconButton(
                                   icon: Icon(Icons.verified_user_rounded,
                                       size: 16, color: colors.accentEmerald),
-                                  tooltip: 'Whitelist',
+                                  tooltip: isVi ? 'Gỡ cấm' : 'Unblock',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(
                                       minWidth: 28, minHeight: 28),
                                   onPressed: () => onQuickWhitelist(client),
-                                ),
+                                )
+                              : (isWhitelisted && !client.isBlocked
+                                  ? IconButton(
+                                      icon: Icon(Icons.block_flipped,
+                                          size: 16, color: colors.accentRose),
+                                      tooltip: 'Block',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                          minWidth: 28, minHeight: 28),
+                                      onPressed: () => onQuickBlock(client),
+                                    )
+                                  : IconButton(
+                                      icon: Icon(Icons.verified_user_rounded,
+                                          size: 16,
+                                          color: colors.accentEmerald),
+                                      tooltip: 'Whitelist',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                          minWidth: 28, minHeight: 28),
+                                      onPressed: () => onQuickWhitelist(client),
+                                    )),
                         ),
                       ),
                     ],
