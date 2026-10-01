@@ -1,4 +1,4 @@
-# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.1.8
+# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.2.0
 
 Ứng dụng quản trị và bảo vệ điểm phát sóng di động (Windows Mobile Hotspot) chuyên nghiệp với giao diện Bento Glassmorphic hiện đại, cơ chế phòng thủ xâm nhập kép (ARP Poisoning + Windows Firewall) và cập nhật mạng nội bộ LAN Over-The-Air (OTA).
 
@@ -7,7 +7,7 @@
 ## 📦 1. Cài đặt & Khởi chạy
 
 ### Cách 1: Sử dụng Bản Portable Trực tiếp (Không cần cài đặt)
-1. Tải gói phát hành `JA_WiFi_Manager_v1.1.8_Windows_x64.zip`.
+1. Tải gói phát hành `JA_WiFi_Manager_v1.2.0_Windows_x64.zip`.
 2. Giải nén vào thư mục bất kỳ trên máy tính (ví dụ `D:\Tools\JA_WiFi_Manager\`).
 3. Nhấp đúp vào `ja_wifi_manager.exe` để khởi chạy.
    > **Lưu ý:** Ứng dụng sẽ tự động yêu cầu quyền Administrator (UAC). Vui lòng nhấn **Yes** để cho phép ứng dụng can thiệp vào bảng ARP và Windows Firewall nhằm ngăn chặn thiết bị lạ.
@@ -40,16 +40,22 @@
 - **Thêm thiết bị mới:** Nhấn nút `+ Thêm thiết bị`, nhập địa chỉ MAC và đặt biệt danh.
 - **Sao lưu & Phục hồi:** Nhập/Xuất danh sách trắng ra file JSON để dễ dàng di chuyển sang máy tính khác.
 
-### C. Tab Điểm phát sóng (Mobile Hotspot Tab)
+### C. Tab Danh sách chặn (Blacklist Tab)
+- Quản lý danh sách các thiết bị cấm truy cập, tự động kích hoạt chế độ cô lập kép (ARP Poisoning + Firewall Inbound Block).
+- **Thẻ KPI trực quan:** Theo dõi số lượng thiết bị chặn, số phiên đang can thiệp thực tế (Active Interceptions) và số thiết bị chặn ngoại tuyến (Armed Offline).
+- **Chuyển đổi tương hỗ:** Nút bấm 1-click để chuyển đổi qua lại giữa Whitelist và Blacklist (`Move to Whitelist` / `Move to Blacklist`).
+- **Ghi nhớ tên vĩnh viễn (Universal Renaming):** Biệt danh thiết bị sau khi đổi ở bất kỳ tab nào sẽ được lưu vào `device_names.json` và đồng bộ tức thì trên toàn bộ ứng dụng.
+
+### D. Tab Điểm phát sóng (Mobile Hotspot Tab)
 - Quản lý trạng thái Bật/Tắt của Windows Mobile Hotspot.
 - Cấu hình Tên mạng (SSID), Mật khẩu (WPA2-PSK), Băng tần Wi-Fi (Auto / 2.4 GHz / 5.0 GHz) và Giới hạn số lượng máy kết nối.
 - **Công cụ sửa lỗi ICS:** Nút *Sửa lỗi ICS (Buộc dừng)* tự động tìm PID của tiến trình `SharedAccess` bị treo, tắt cưỡng chế và khởi động lại dịch vụ chia sẻ mạng của Windows.
 
-### D. Tab Nhật ký (Console Tab)
+### E. Tab Nhật ký (Console Tab)
 - Xem luồng log theo thời gian thực với phân loại mã màu (BLOCK, ALLOW, WARN, INFO).
 - Hỗ trợ tìm kiếm từ khóa trong log, lọc theo mức độ, bật/tắt Auto Scroll và sao chép toàn bộ log.
 
-### E. Tab Cài đặt & LAN OTA Update (Settings Tab)
+### F. Tab Cài đặt & LAN OTA Update (Settings Tab)
 - **Tùy chọn hệ thống:** Cấu hình tần suất quét kiểm tra (5s, 10s, 30s), khởi động cùng Windows, thu nhỏ về khay hệ thống (System Tray).
 - **Cập nhật nội bộ LAN OTA:** Thiết lập đường dẫn máy chủ chia sẻ mạng (SMB Share `\\Server\Share\JA_WiFi_Manager`) để tự động kiểm tra và nâng cấp phiên bản mới trong mạng LAN mà không cần Internet.
 

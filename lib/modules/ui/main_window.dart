@@ -15,6 +15,7 @@ import 'monitor_tab.dart';
 import 'settings_tab.dart';
 import 'sidebar.dart';
 import 'whitelist_tab.dart';
+import 'blacklist_tab.dart';
 import 'header_bar.dart';
 import 'console_tab.dart';
 import 'hotspot_tab.dart';
@@ -80,7 +81,9 @@ class _MainWindowState extends State<MainWindow>
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
         if (!widget.logic.isGuardActive) {
-          if (_activeTab == 'MONITOR' || _activeTab == 'WHITELIST') {
+          if (_activeTab == 'MONITOR' ||
+              _activeTab == 'WHITELIST' ||
+              _activeTab == 'BLACKLIST') {
             widget.logic.scanConnectedClients();
           }
         }
@@ -398,9 +401,71 @@ class _MainWindowState extends State<MainWindow>
   }
 
   Future<void> _quickBlockClient(ClientDevice client) async {
-    await widget.logic.removeWhitelistDevice(client.mac);
-    _showSnackbar(_s.msgRemoveSuccess);
+    final success = await widget.logic.addBlacklistDevice(
+      client.mac,
+      client.nickname,
+      reason: 'Manual Block from Monitor',
+    );
+    if (success) {
+      _showSnackbar(_s.msgBlacklistAddSuccess);
+    } else {
+      await widget.logic.removeWhitelistDevice(client.mac);
+      _showSnackbar(_s.msgRemoveSuccess);
+    }
     await widget.logic.scanConnectedClients();
+  }
+
+  Future<void> _addBlacklistDevice() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AddBlacklistDeviceDialog(logic: widget.logic),
+    );
+    if (result == true) {
+      _showSnackbar(_s.msgBlacklistAddSuccess);
+      await widget.logic.scanConnectedClients();
+    }
+  }
+
+  Future<void> _deleteBlacklistDeviceInline(BlacklistEntry entry) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => DeleteBlacklistDeviceDialog(entry: entry),
+    );
+
+    if (confirm == true) {
+      await widget.logic.removeBlacklistDevice(entry.mac);
+      _showSnackbar(_s.msgBlacklistRemoveSuccess);
+      await widget.logic.scanConnectedClients();
+    }
+  }
+
+  Future<void> _moveBlacklistToWhitelist(BlacklistEntry entry) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(_s.dlgAddTitle),
+        content: Text(_s.dlgMoveToWhitelistConfirm(
+            entry.nickname.isNotEmpty ? entry.nickname : entry.mac)),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(_s.btnCancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(_s.btnMoveToWhitelist),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await widget.logic.moveToWhitelist(entry.mac);
+      if (success) {
+        _showSnackbar(_s.msgAddSuccess);
+        await widget.logic.scanConnectedClients();
+      }
+    }
   }
 
   Future<void> _importWhitelist() async {
@@ -563,6 +628,14 @@ class _MainWindowState extends State<MainWindow>
           onAddDevice: _addDevice,
           onEditNickname: _editNicknameInline,
           onDeleteDevice: _deleteDeviceInline,
+        );
+      case 'BLACKLIST':
+        return BlacklistTab(
+          logic: widget.logic,
+          onAddDevice: _addBlacklistDevice,
+          onEditNickname: _editNicknameInline,
+          onDeleteDevice: _deleteBlacklistDeviceInline,
+          onMoveToWhitelist: _moveBlacklistToWhitelist,
         );
       case 'CONSOLE':
         return ConsoleTab(

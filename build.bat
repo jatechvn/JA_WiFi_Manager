@@ -41,6 +41,8 @@ if exist "i18n" xcopy /e /i /y /q "i18n" "%RELEASE_DIR%\i18n\"
 if exist "ABOUT.txt" copy /y "ABOUT.txt" "%RELEASE_DIR%\" >nul
 if exist "README.md" copy /y "README.md" "%RELEASE_DIR%\" >nul
 if exist "CHANGELOG.md" copy /y "CHANGELOG.md" "%RELEASE_DIR%\" >nul
+if exist "USERGUIDE.md" copy /y "USERGUIDE.md" "%RELEASE_DIR%\" >nul
+if exist "RELEASE_NOTES.md" copy /y "RELEASE_NOTES.md" "%RELEASE_DIR%\" >nul
 if exist "LICENSE" copy /y "LICENSE" "%RELEASE_DIR%\" >nul
 if exist "install.bat" copy /y "install.bat" "%RELEASE_DIR%\" >nul
 if exist "uninstall.bat" copy /y "uninstall.bat" "%RELEASE_DIR%\" >nul
@@ -64,9 +66,16 @@ if exist "debug.bat" (
 echo Dang tao loi tat .Release.lnk tai thu muc goc...
 powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%WORKSPACE_DIR%\.Release.lnk'); $s.TargetPath = '%WORKSPACE_DIR%\%RELEASE_DIR%'; $s.Save()"
 
-:: Clean runtime logs before packaging
+:: Clean runtime logs and personal configs before packaging
 if exist "%RELEASE_DIR%\logs" rmdir /s /q "%RELEASE_DIR%\logs"
 if exist "%RELEASE_DIR%\*.log" del /q "%RELEASE_DIR%\*.log"
+if exist "%RELEASE_DIR%\config.ini" del /q "%RELEASE_DIR%\config.ini"
+if exist "%RELEASE_DIR%\config.json" del /q "%RELEASE_DIR%\config.json"
+if exist "%RELEASE_DIR%\whitelist.json" del /q "%RELEASE_DIR%\whitelist.json"
+if exist "%RELEASE_DIR%\blacklist.json" del /q "%RELEASE_DIR%\blacklist.json"
+if exist "%RELEASE_DIR%\device_names.json" del /q "%RELEASE_DIR%\device_names.json"
+if exist "%RELEASE_DIR%\update_config.json" del /q "%RELEASE_DIR%\update_config.json"
+if exist "%RELEASE_DIR%\user_preferences.json" del /q "%RELEASE_DIR%\user_preferences.json"
 
 :: 4. Copy to dist/
 echo ============================================================
@@ -90,6 +99,7 @@ mkdir "dist_pack\%PKG_NAME%"
 xcopy /e /i /y /q "dist\*.*" "dist_pack\%PKG_NAME%\"
 powershell -NoProfile -Command "Compress-Archive -Path 'dist_pack\*' -DestinationPath 'dist\%PKG_NAME%.zip' -Force"
 if exist "dist_pack" rmdir /s /q "dist_pack"
+powershell -NoProfile -Command "Get-FileHash -Algorithm SHA256 'dist\%PKG_NAME%.zip' | ForEach-Object { '{0} *{1}' -f $_.Hash.ToLower(), [System.IO.Path]::GetFileName($_.Path) } | Out-File -Encoding utf8 'dist\SHA256SUMS.txt'"
 
 echo ============================================================
 echo   [THANH CONG] DONG GOI RELEASE HOAN TAT!

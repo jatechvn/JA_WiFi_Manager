@@ -9,7 +9,7 @@
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com/windows)
-  [![Release](https://img.shields.io/badge/Release-v1.1.8-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
+  [![Release](https://img.shields.io/badge/Release-v1.2.0-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
   [![License](https://img.shields.io/badge/License-Proprietary-FFB100?style=for-the-badge)](#-license--author)
 
   <p align="center">
@@ -172,6 +172,7 @@ Whitelisted devices are stored separately in `whitelist.json`, exportable/import
 
 Refer to [CHANGELOG.md](CHANGELOG.md) for full version history details.
 
+- **v1.2.0:** Dedicated Blacklist Tab with Bento Glassmorphic UI & KPI metrics, real-time dual-layer Blacklist interception (ARP Poisoning + Firewall Inbound Block), Universal Persistent Device Renaming across all views (`device_names.json`), zero-reset LAN OTA configuration protection (`/XF` & auto-backup), and brand-new transparent application logo & multi-size Windows icon.
 - **v1.1.8:** Denser Bento layout, Windows language and Auto theme on first launch, Windows 10 glass title bar caption fix, close-window hang fix, and localized header titles plus monitor filter tooltips.
 - **v1.1.7:** Added forceful PID-kill ICS repair troubleshooter, automated log rotation and file pruning (<1MB guard), standardized release build scripts (`build.bat`, `build.sh`, `run.sh`), `LICENSE`, and multi-language documentation (`i18n/`).
 - **v1.1.6:** Fixed duplicate MAC rows in Monitor, added `-debug` launch mode with a build-time debug badge (bounce/ping-pong marquee for overflow text), fixed `-debug` being dropped during admin self-elevation, and reworked the theme toggle to default to the system theme.

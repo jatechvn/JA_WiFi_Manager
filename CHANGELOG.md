@@ -2,6 +2,23 @@
 
 All notable changes to **JA WiFi Hotspot Guard** will be documented in this file.
 
+## [v1.2.0] - 2026-10-01
+
+### 🚀 Nâng cấp & Tính năng mới
+- **Tab Blacklist (Danh sách chặn chuyên biệt):** Bổ sung tab quản lý Blacklist theo ngôn ngữ thiết kế Bento Glassmorphic hiện đại, tích hợp thẻ KPI (Total, Active Interceptions, Armed Offline), thanh dock lọc tìm kiếm tức thì, đổi tên inline và nút chuyển đổi tương hỗ nhanh giữa Whitelist và Blacklist.
+- **Cơ chế cô lập Blacklist thời gian thực:** Tự động can thiệp cô lập thiết bị thuộc Blacklist ngay khi kết nối bằng cơ chế kép (ARP Poisoning LinkLayer 00-00-00-00-00-01 + Windows Firewall Inbound Block).
+- **Ghi nhớ tên thiết bị vĩnh viễn (Universal Persistent Renaming):** Bổ sung file lưu trữ `device_names.json`. Việc đổi tên thiết bị ở bất kỳ vị trí nào trên giao diện (Monitor, Whitelist, Blacklist hay qua Dialog) đều được ghi nhớ vĩnh viễn, đồng bộ đa chiều và bảo toàn tuyệt đối sau khi rescan hay khởi động lại máy.
+- **Bảo vệ cấu hình tuyệt đối khi Update LAN OTA (Zero-Reset Protection):** Nâng cấp `OtaUpdateService`, kịch bản cập nhật và bộ cài đặt `install.bat` với bộ lọc loại trừ Robocopy `/XF` và sao lưu an toàn tự động, đảm bảo quá trình cập nhật OTA không bao giờ reset `config.ini`, `whitelist.json`, `blacklist.json`, `device_names.json`, `update_config.json`, `user_preferences.json` hay log hệ thống.
+- **Bộ nhận diện Icon & Logo mới:** Thiết kế logo mới nền trong suốt, đóng gói icon exe chuẩn ICO đa độ phân giải và sửa lỗi hiển thị icon trên thanh tiêu đề Windows 10/11.
+
+### 🐛 Sửa lỗi & Tối ưu hóa
+- **Loại trừ tương hỗ (Mutual Exclusion):** Đảm bảo một thiết bị không bao giờ cùng lúc nằm trong cả Whitelist và Blacklist; tự động gỡ khỏi danh sách đối lập khi thêm mới.
+- **Tối ưu hóa phản hồi giao diện:** Cập nhật trạng thái thiết bị trong bộ nhớ O(1) ngay lập tức khi thêm/xóa danh sách thay vì gọi các lệnh PowerShell quét mạng gây giật lag giao diện.
+
+### 📦 Phát hành
+- Đồng bộ version 1.2.0+11 trong pubspec.yaml, constants.dart, Runner.rc, ABOUT.txt, README.md, USERGUIDE.md, RELEASE_NOTES.md.
+- Đóng gói bản phát hành di động chuẩn Windows x64 kèm mã băm xác thực SHA256SUMS.txt.
+
 ## [v1.1.8] - 2026-09-23
 
 ### 🚀 Nâng cấp & Tính năng mới

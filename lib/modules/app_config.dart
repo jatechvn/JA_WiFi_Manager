@@ -4,6 +4,7 @@
 
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 
 class AppConfig {
@@ -52,16 +53,20 @@ class AppConfig {
     return false;
   }
 
-  /// Windows UI language: `vi`, `zh`, or `en`.
+  /// System UI language, falling back to English when unsupported.
   static String systemLanguageCode() {
-    final code = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
-    if (code.startsWith('vi')) return 'vi';
-    if (code.startsWith('zh')) return 'zh';
+    final code = WidgetsBinding.instance.platformDispatcher.locale.languageCode
+        .toLowerCase();
+    if (code == 'vi' || code == 'zh') return code;
     return 'en';
   }
 
-  /// Follow Windows light/dark live instead of freezing a one-time snapshot.
-  static String systemDefaultTheme() => 'auto';
+  /// Choose the system appearance on first launch; preserve later preferences.
+  static String systemDefaultTheme() =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark
+          ? 'dark'
+          : 'light';
 
   static Future<void> _load() async {
     try {
@@ -133,6 +138,22 @@ class AppConfig {
     return 'whitelist.json';
   }
 
+  /// Path to the blacklisted devices json
+  static String getBlacklistPath() {
+    if (_configPath != null) {
+      return p.join(p.dirname(_configPath!), 'blacklist.json');
+    }
+    return 'blacklist.json';
+  }
+
+  /// Path to the persistent custom device nicknames json
+  static String getDeviceNamesPath() {
+    if (_configPath != null) {
+      return p.join(p.dirname(_configPath!), 'device_names.json');
+    }
+    return 'device_names.json';
+  }
+
   /// Path to extract/run the powershell script
   static String getScriptPath() {
     if (_configPath != null) {
@@ -147,5 +168,10 @@ class AppConfig {
       return p.join(p.dirname(_configPath!), 'wifi_guard.log');
     }
     return 'wifi_guard.log';
+  }
+
+  @visibleForTesting
+  static void setCustomBaseDirForTesting(String dirPath) {
+    _configPath = p.join(dirPath, 'config.ini');
   }
 }
