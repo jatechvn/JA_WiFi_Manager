@@ -2,8 +2,8 @@
                        PROJECT INFORMATION CARD
 ========================================================================
 Project Name : JA WiFi Hotspot Guard
-Version      : 1.2.0+11
-Release Date : 2026-10-01
+Version      : 1.2.1+12
+Release Date : 2026-10-02
 Tech Stack   : Flutter 3.x / Dart 3.x
 Managed By   : JA Auto Git
 Website      : https://jatechvn.github.io/

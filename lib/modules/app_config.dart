@@ -75,6 +75,8 @@ class AppConfig {
         _values = {
           'language': systemLanguageCode(),
           'theme': systemDefaultTheme(),
+          'enable_idle_sleep': 'true',
+          'idle_timeout_seconds': '12',
         };
         await _save();
         return;

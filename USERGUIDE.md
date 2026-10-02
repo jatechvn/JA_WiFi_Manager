@@ -1,4 +1,4 @@
-# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.2.0
+# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.2.1
 
 Ứng dụng quản trị và bảo vệ điểm phát sóng di động (Windows Mobile Hotspot) chuyên nghiệp với giao diện Bento Glassmorphic hiện đại, cơ chế phòng thủ xâm nhập kép (ARP Poisoning + Windows Firewall) và cập nhật mạng nội bộ LAN Over-The-Air (OTA).
 
@@ -7,7 +7,7 @@
 ## 📦 1. Cài đặt & Khởi chạy
 
 ### Cách 1: Sử dụng Bản Portable Trực tiếp (Không cần cài đặt)
-1. Tải gói phát hành `JA_WiFi_Manager_v1.2.0_Windows_x64.zip`.
+1. Tải gói phát hành `JA_WiFi_Manager_v1.2.1_Windows_x64.zip`.
 2. Giải nén vào thư mục bất kỳ trên máy tính (ví dụ `D:\Tools\JA_WiFi_Manager\`).
 3. Nhấp đúp vào `ja_wifi_manager.exe` để khởi chạy.
    > **Lưu ý:** Ứng dụng sẽ tự động yêu cầu quyền Administrator (UAC). Vui lòng nhấn **Yes** để cho phép ứng dụng can thiệp vào bảng ARP và Windows Firewall nhằm ngăn chặn thiết bị lạ.
@@ -55,8 +55,12 @@
 - Xem luồng log theo thời gian thực với phân loại mã màu (BLOCK, ALLOW, WARN, INFO).
 - Hỗ trợ tìm kiếm từ khóa trong log, lọc theo mức độ, bật/tắt Auto Scroll và sao chép toàn bộ log.
 
-### F. Tab Cài đặt & LAN OTA Update (Settings Tab)
+### F. Tab Cài đặt, Tối ưu hóa Năng lượng & LAN OTA Update (Settings Tab)
 - **Tùy chọn hệ thống:** Cấu hình tần suất quét kiểm tra (5s, 10s, 30s), khởi động cùng Windows, thu nhỏ về khay hệ thống (System Tray).
+- **Tối ưu hóa Năng lượng & GPU (Power & GPU Optimizer):**
+  - **Chế độ ngủ rảnh tay (Idle Sleep Mode):** Tự động đưa hoạt ảnh nền đồ họa vào trạng thái ngủ khi bạn không thao tác chuột/phím sau một khoảng thời gian nhất định (mặc định 12 giây, hoặc chọn 30s, 60s), giúp giảm tải GPU/CPU xuống 0% cho màn hình chờ.
+  - **Tự động thức giấc:** Ngay khi bạn di chuột, lăn chuột hoặc gõ phím, ứng dụng lập tức thức dậy và tiếp tục hoạt ảnh mượt mà đúng chiều chuyển động đang dở dang mà không bị giật lag.
+  - **Đóng băng khi Inactive / Minimized:** Khi chuyển sang làm việc ở ứng dụng khác hoặc thu nhỏ xuống Taskbar, toàn bộ frame vẽ GPU được ngắt tự động, trong khi các tác vụ quét an ninh ngầm vẫn hoạt động liên tục.
 - **Cập nhật nội bộ LAN OTA:** Thiết lập đường dẫn máy chủ chia sẻ mạng (SMB Share `\\Server\Share\JA_WiFi_Manager`) để tự động kiểm tra và nâng cấp phiên bản mới trong mạng LAN mà không cần Internet.
 
 ---
