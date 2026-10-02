@@ -159,6 +159,30 @@ class AppStrings {
       '打开应用时自动开启并配置移动热点',
       'Tự động kích hoạt điểm phát sóng Wi-Fi khi mở ứng dụng');
 
+  // ── Power & GPU Optimizer ───────────────────
+  String get settingsPowerOptimizerTitle => _s('Power & GPU Optimization',
+      '电量与 GPU 性能优化', 'Tối ưu hóa Năng lượng & GPU');
+  String get settingEnableIdleSleep => _s('Idle Sleep Mode (Pause Background)',
+      '闲置休眠模式 (暂停背景动画)', 'Chế độ ngủ rảnh tay (Tạm dừng nền)');
+  String get settingEnableIdleSleepDesc => _s(
+      'Automatically freezes heavy background animations when user is idle or window is inactive to save GPU/power',
+      '当无鼠标键盘操作或窗口非活动时自动冻结背景动画以降低 GPU 占用',
+      'Tự động đóng băng hiệu ứng nền khi không thao tác hoặc khi mất focus để giải phóng GPU/CPU');
+  String get settingIdleTimeout =>
+      _s('Idle Sleep Timeout', '闲置休眠等待时间', 'Thời gian chờ ngủ rảnh tay');
+  String get settingIdleTimeoutDesc => _s(
+      'Duration of no user interaction before entering idle sleep',
+      '无用户操作后进入闲置休眠状态的等待时长',
+      'Thời gian không có tương tác chuột/phím trước khi tạm dừng hiệu ứng nền');
+  String get idleTimeout12s =>
+      _s('12s (Recommended)', '12 秒 (推荐)', '12 Giây (Khuyến nghị)');
+  String get idleTimeout30s => _s('30 Seconds', '30 秒', '30 Giây');
+  String get idleTimeout60s => _s('60 Seconds', '60 秒', '60 Giây');
+  String settingsPowerUpdated(int seconds) => _s(
+      'Idle sleep updated: $seconds seconds',
+      '闲置休眠设置已更新: $seconds 秒',
+      'Đã cập nhật thời gian ngủ rảnh tay: $seconds giây');
+
   // ── Table Headers ───────────────────────────
   String get colNum => '#';
   String get colIpAddress => _s('IP ADDRESS', 'IP 地址', 'ĐỊA CHỈ IP');

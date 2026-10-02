@@ -13,6 +13,8 @@ import 'modules/app_config.dart';
 import 'modules/i18n.dart';
 import 'modules/ui/styles.dart';
 import 'modules/ui/main_window.dart';
+import 'modules/ui/widgets/app_ticker_gate.dart';
+import 'modules/services/app_power_manager.dart';
 
 import 'modules/build_info.dart';
 
@@ -130,6 +132,10 @@ void main(List<String> args) async {
       AppConfig.get('theme', defaultValue: AppConfig.systemDefaultTheme());
   final savedThemeMode = AppThemeModeExt.fromCode(savedThemeStr);
 
+  // Initialize power manager (Idle sleep mode & GPU optimization)
+  await AppPowerManager.instance.initialize();
+  AppPowerManager.instance.onWindowVisibilityChanged(!startMinimized);
+
   runApp(JaWifiManagerApp(
     logic: wifiLogic,
     initialLanguage: savedLang,
@@ -195,6 +201,29 @@ class _JaWifiManagerAppState extends State<JaWifiManagerApp>
             title: '$appName  v$appVersion',
             debugShowCheckedModeBanner: false,
             theme: buildThemeData(_themeNotifier.colors),
+            builder: (context, child) {
+              return Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (_) =>
+                    AppPowerManager.instance.recordUserInteraction(),
+                onPointerMove: (_) =>
+                    AppPowerManager.instance.recordUserInteraction(),
+                onPointerHover: (_) =>
+                    AppPowerManager.instance.recordUserInteraction(),
+                onPointerSignal: (_) =>
+                    AppPowerManager.instance.recordUserInteraction(),
+                child: Focus(
+                  autofocus: false,
+                  onKeyEvent: (node, event) {
+                    AppPowerManager.instance.recordUserInteraction();
+                    return KeyEventResult.ignored;
+                  },
+                  child: AppTickerGate(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                ),
+              );
+            },
             home: ThemeReveal(
               themeNotifier: _themeNotifier,
               child: MainWindow(

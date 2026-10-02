@@ -2,6 +2,26 @@
 
 All notable changes to **JA WiFi Hotspot Guard** will be documented in this file.
 
+## [v1.2.1] - 2026-10-02
+
+### 🚀 Nâng cấp & Tính năng mới
+- **Tối ưu hóa điện năng & Triệt tiêu 100% tải GPU dư thừa (`flutter-power-optimizer`):**
+  - **Single Source of Truth `AppPowerManager`:** Quản lý tập trung toàn diện trạng thái cửa sổ (Focus, Visibility, Idle). Mọi animation và render loop tuân thủ chính sách tiết kiệm năng lượng 4 tầng thống nhất.
+  - **Chế độ ngủ rảnh tay (Idle Sleep Mode):** Tự động tạm dừng hoạt ảnh nền nặng (`MeshOrb`) khi người dùng không tương tác sau 12 giây (hỗ trợ tùy chọn 12s, 30s, 60s). Bộ bắt tương tác chuột/phím toàn cục kèm cơ chế throttle 600ms giúp đánh thức giao diện tức thì khi có thao tác.
+  - **Bảo toàn hướng chuyển động (Direction Preservation):** Cải tiến `WaveIndicator` và `MeshOrb` tự động theo dõi trạng thái `reverse` khi tạm dừng, tiếp tục đúng chiều chuyển động khi kích hoạt lại mà không bị giật ngược chiều đột ngột.
+  - **Session Epoch Guard & Đóng băng Offset:** Tích hợp bộ đếm phiên bản `_sessionEpoch++` và đóng băng vị trí cuộn `jumpTo(currentOffset)` trong `GlassMarquee`, triệt tiêu hoàn toàn callback ma từ Timer/Future và ngăn ngừa trôi chữ cuộn.
+  - **Cổng ngắt Ticker UI (`AppTickerGate`):** Tự động ngắt toàn bộ TickerMode của cây giao diện khi cửa sổ bị ẩn, thu nhỏ hoặc mất focus, triệt tiêu 100% continuous draw calls.
+  - **Bảo toàn 100% tác vụ bảo mật chạy ngầm:** Vòng lặp bảo vệ Wi-Fi Guard (`_guardLoopTimer`) và tiến trình kiểm tra cập nhật mạng nội bộ LAN OTA tiếp tục chạy độc lập 100% ở chế độ ngầm.
+  - **Thẻ cấu hình Power Optimizer trong Settings:** Bổ sung `PowerOptimizerCard` vào tab Cài đặt với công tắc bật/tắt chế độ ngủ rảnh tay và bộ chọn mốc thời gian 12s/30s/60s lưu trữ bền vững trong `config.ini`, hỗ trợ đầy đủ 3 ngôn ngữ (Tiếng Việt, English, 中文).
+
+### 🐛 Sửa lỗi & Tối ưu hóa
+- **Khắc phục lỗi cướp Focus Win32 Native:** Xử lý thông điệp `WM_ACTIVATE` trong `windows/runner/win32_window.cpp`, chỉ gọi `SetFocus` khi `LOWORD(wparam) != WA_INACTIVE`, ngăn hệ điều hành vô tình kích hoạt lại render loop khi cửa sổ chuyển sang inactive.
+- **Tối ưu hóa UI Refresh Timer:** Tạm dừng bộ định thời quét giao diện `_refreshTimer` khi cửa sổ mất focus hoặc thu nhỏ, giải phóng tải CPU phụ trợ.
+
+### 📦 Phát hành
+- Đồng bộ version 1.2.1+12 trong pubspec.yaml, constants.dart, Runner.rc, ABOUT.txt, README.md, USERGUIDE.md, RELEASE_NOTES.md.
+- Đóng gói bản phát hành di động chuẩn Windows x64 kèm mã băm xác thực SHA256SUMS.txt.
+
 ## [v1.2.0] - 2026-10-01
 
 ### 🚀 Nâng cấp & Tính năng mới

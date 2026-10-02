@@ -20,6 +20,7 @@ import 'header_bar.dart';
 import 'console_tab.dart';
 import 'hotspot_tab.dart';
 import '../services/ota_update_service.dart';
+import '../services/app_power_manager.dart';
 import 'widgets/glass_update_dialog.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -63,6 +64,7 @@ class _MainWindowState extends State<MainWindow>
   final ScrollController _logScrollController = ScrollController();
 
   Timer? _refreshTimer;
+  AppLifecycleListener? _lifecycleListener;
   final GlobalKey _themeButtonKey = GlobalKey();
 
   // Logs filtering option
@@ -77,10 +79,26 @@ class _MainWindowState extends State<MainWindow>
     _initTray();
     _initialize();
 
-    // Periodically refresh clients only when guard is inactive and we are on a viewing tab
+    // Hidden startup must not be mistaken for an active window.
+    _syncWindowPowerState().catchError((_) {});
+
+    // Listen to Flutter AppLifecycleState changes
+    _lifecycleListener = AppLifecycleListener(
+      onStateChange: AppPowerManager.instance.onLifecycleStateChanged,
+    );
+
+    widget.languageNotifier.addListener(_onLanguageChange);
+    widget.logic.addListener(_onLogicChange);
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _startRefreshTimerIfNeeded() {
+    _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
-        if (!widget.logic.isGuardActive) {
+        if (!widget.logic.isGuardActive &&
+            AppPowerManager.instance.isWindowFocused &&
+            AppPowerManager.instance.isWindowVisible) {
           if (_activeTab == 'MONITOR' ||
               _activeTab == 'WHITELIST' ||
               _activeTab == 'BLACKLIST') {
@@ -89,15 +107,17 @@ class _MainWindowState extends State<MainWindow>
         }
       }
     });
+  }
 
-    widget.languageNotifier.addListener(_onLanguageChange);
-    widget.logic.addListener(_onLogicChange);
-    _searchController.addListener(_onSearchChanged);
+  void _stopRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _stopRefreshTimer();
+    _lifecycleListener?.dispose();
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     trayManager.destroy();
@@ -157,14 +177,67 @@ class _MainWindowState extends State<MainWindow>
   }
 
   @override
+  void onWindowFocus() {
+    AppPowerManager.instance.onWindowFocus();
+    _startRefreshTimerIfNeeded();
+  }
+
+  @override
+  void onWindowBlur() {
+    AppPowerManager.instance.onWindowBlur();
+    _stopRefreshTimer();
+  }
+
+  @override
+  void onWindowMinimize() {
+    AppPowerManager.instance.onWindowMinimize();
+    _stopRefreshTimer();
+  }
+
+  @override
+  void onWindowRestore() {
+    AppPowerManager.instance.onWindowRestore();
+  }
+
+  @override
   void onWindowClose() {
     final closeToTray =
         AppConfig.get('close_to_tray', defaultValue: 'false') == 'true';
     if (closeToTray) {
-      windowManager.hide();
+      _hideToTray();
       return;
     }
     _exitApp();
+  }
+
+  Future<void> _hideToTray() async {
+    AppPowerManager.instance.onWindowVisibilityChanged(false);
+    _stopRefreshTimer();
+    try {
+      await windowManager.hide();
+    } catch (error) {
+      debugPrint('Hide to tray failed: $error');
+      await _syncWindowPowerState();
+    }
+  }
+
+  Future<void> _syncWindowPowerState() async {
+    final visible = await windowManager.isVisible();
+    final focused = visible && await windowManager.isFocused();
+    if (!mounted) return;
+    AppPowerManager.instance.onWindowVisibilityChanged(visible);
+    if (focused) {
+      onWindowFocus();
+    } else {
+      onWindowBlur();
+    }
+  }
+
+  Future<void> _showFromTray() async {
+    await windowManager.show();
+    AppPowerManager.instance.onWindowVisibilityChanged(true);
+    await windowManager.focus();
+    await _syncWindowPowerState();
   }
 
   /// Closes without waiting forever on firewall cleanup, and without calling
@@ -194,10 +267,9 @@ class _MainWindowState extends State<MainWindow>
   void onTrayIconMouseDown() async {
     final isVisible = await windowManager.isVisible();
     if (isVisible) {
-      await windowManager.hide();
+      await _hideToTray();
     } else {
-      await windowManager.show();
-      await windowManager.focus();
+      await _showFromTray();
     }
   }
 
@@ -209,8 +281,7 @@ class _MainWindowState extends State<MainWindow>
   @override
   void onTrayMenuItemClick(MenuItem menuItem) async {
     if (menuItem.key == 'show_window') {
-      await windowManager.show();
-      await windowManager.focus();
+      await _showFromTray();
     } else if (menuItem.key == 'toggle_guard') {
       await _toggleGuard();
     } else if (menuItem.key == 'exit_app') {
