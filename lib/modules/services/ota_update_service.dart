@@ -715,6 +715,76 @@ try {
       }
     }
 
+    // 3. Fallback: Check SHA256SUMS.txt if version.json is not present
+    final shaSumsFile = File(
+      '${dir.path}${Platform.pathSeparator}SHA256SUMS.txt',
+    );
+    if (await shaSumsFile.exists()) {
+      try {
+        final content = await shaSumsFile.readAsString();
+        final lines = content.split(RegExp(r'\r?\n'));
+        for (final line in lines) {
+          final trimmed = line.trim();
+          if (trimmed.isEmpty) continue;
+          final match =
+              RegExp(r'^([a-fA-F0-9]{64})\s+[*]?(\S+)$').firstMatch(trimmed);
+          if (match == null) continue;
+          final sha256 = match.group(1)!.toLowerCase();
+          final fileName = match.group(2)!;
+          if (!isValidPackageName(fileName) || !isValidSha256(sha256)) continue;
+
+          final verMatch = RegExp(
+            r'JA_WiFi_Manager_v?([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\+[0-9]+)?)',
+            caseSensitive: false,
+          ).firstMatch(fileName);
+          if (verMatch == null) continue;
+          final serverSemVer = SemanticVersion.tryParse(verMatch.group(1));
+          if (serverSemVer == null) continue;
+
+          final zipFile = File('${dir.path}${Platform.pathSeparator}$fileName');
+          if (await zipFile.exists()) {
+            final hasUpdate = serverSemVer > currentSemVer;
+            String? releaseNotes;
+            final notesFile =
+                File('${dir.path}${Platform.pathSeparator}RELEASE_NOTES.md');
+            if (await notesFile.exists()) {
+              try {
+                releaseNotes = await notesFile.readAsString();
+              } catch (_) {}
+            }
+
+            final pkg = UpdatePackageInfo(
+              version: serverSemVer,
+              fileName: fileName,
+              fullPath: zipFile.path,
+              fileSize: await zipFile.length(),
+              sha256: sha256,
+              releaseNotes: releaseNotes,
+              releaseDate: await zipFile.lastModified(),
+            );
+
+            if (hasUpdate) {
+              await saveExternalConfigFile(
+                _cachedConfig.copyWith(
+                    cachedUpdateVersion: serverSemVer.toString()),
+              );
+            }
+            return UpdateCheckResult(
+              hasUpdate: hasUpdate,
+              packageInfo: pkg,
+              currentVersion: currentVerStr,
+            );
+          }
+        }
+      } catch (e) {
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: currentVerStr,
+          errorMessage: 'Không thể đọc SHA256SUMS.txt an toàn: $e',
+        );
+      }
+    }
+
     return UpdateCheckResult(
       hasUpdate: false,
       currentVersion: currentVerStr,
