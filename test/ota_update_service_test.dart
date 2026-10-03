@@ -343,6 +343,46 @@ void main() {
       expect(result.errorMessage, contains('SHA-256'));
     });
 
+    test(
+        'checkForUpdates successfully falls back to SHA256SUMS.txt when version.json is missing',
+        () async {
+      final mockServer = Directory('${tempDir.path}/mock_server_fallback')
+        ..createSync();
+      OtaUpdateService().setCustomServerDirForTesting(mockServer);
+
+      final zipPkg =
+          File('${mockServer.path}/JA_WiFi_Manager_v1.2.5_Windows_x64.zip');
+      zipPkg.writeAsStringSync('fallback_zip_content');
+      final sha256 = await OtaUpdateService().calculateSha256ForTesting(zipPkg);
+
+      final shaSums = File('${mockServer.path}/SHA256SUMS.txt');
+      shaSums.writeAsStringSync(
+        '$sha256 *JA_WiFi_Manager_v1.2.5_Windows_x64.zip\n',
+      );
+
+      final notesFile = File('${mockServer.path}/RELEASE_NOTES.md');
+      notesFile.writeAsStringSync('Fallback Release Notes Content');
+
+      final result = await OtaUpdateService().checkForUpdates(
+        overrideCurrentVersion: '1.2.1',
+      );
+
+      expect(result.hasUpdate, isTrue);
+      expect(result.packageInfo, isNotNull);
+      expect(
+        result.packageInfo!.version,
+        equals(SemanticVersion.tryParse('1.2.5')),
+      );
+      expect(
+        result.packageInfo!.sha256,
+        equals(sha256.toLowerCase()),
+      );
+      expect(
+        result.packageInfo!.releaseNotes,
+        contains('Fallback Release Notes Content'),
+      );
+    });
+
     test('validatePackageForTesting rejects a tampered package', () async {
       final packageFile = File('${tempDir.path}/update.zip')
         ..writeAsStringSync('original-content');

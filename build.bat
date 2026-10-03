@@ -100,6 +100,7 @@ xcopy /e /i /y /q "dist\*.*" "dist_pack\%PKG_NAME%\"
 powershell -NoProfile -Command "Compress-Archive -Path 'dist_pack\*' -DestinationPath 'dist\%PKG_NAME%.zip' -Force"
 if exist "dist_pack" rmdir /s /q "dist_pack"
 powershell -NoProfile -Command "Get-FileHash -Algorithm SHA256 'dist\%PKG_NAME%.zip' | ForEach-Object { '{0} *{1}' -f $_.Hash.ToLower(), [System.IO.Path]::GetFileName($_.Path) } | Out-File -Encoding utf8 'dist\SHA256SUMS.txt'"
+powershell -NoProfile -Command "$hash = (Get-FileHash -Algorithm SHA256 'dist\%PKG_NAME%.zip').Hash.ToLower(); $notes = if (Test-Path 'RELEASE_NOTES.md') { (Get-Content 'RELEASE_NOTES.md' -Raw -Encoding utf8) } else { '' }; $manifest = [ordered]@{ version = '%APP_VER%'; fileName = '%PKG_NAME%.zip'; sha256 = $hash; releaseDate = (Get-Date -Format 'yyyy-MM-dd'); releaseNotes = $notes }; $manifest | ConvertTo-Json -Depth 4 | Out-File -FilePath 'dist\version.json' -Encoding utf8"
 
 echo ============================================================
 echo   [THANH CONG] DONG GOI RELEASE HOAN TAT!
