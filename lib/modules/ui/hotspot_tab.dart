@@ -7,6 +7,8 @@ import '../logic.dart';
 import '../i18n.dart';
 import 'styles.dart';
 import 'bento_widgets.dart';
+import '../services/app_power_manager.dart';
+import 'widgets/visible_ui_listener.dart';
 
 class HotspotTab extends StatefulWidget {
   final WifiGuardLogic logic;
@@ -35,6 +37,7 @@ class _HotspotTabState extends State<HotspotTab> {
   bool _obscurePassword = true;
   bool _isFixingDhcp = false;
   bool _isFixingIcs = false;
+  late final VisibleUiListener _logicUiListener;
 
   @override
   void initState() {
@@ -46,12 +49,16 @@ class _HotspotTabState extends State<HotspotTab> {
       _selectedBand = config.band;
       _maxClientsController.text = config.maxClients.toString();
     }
-    widget.logic.addListener(_onLogicChange);
+    _logicUiListener = VisibleUiListener(
+      source: widget.logic,
+      visibility: AppPowerManager.instance.windowVisibilityNotifier,
+      onUpdate: _onLogicChange,
+    );
   }
 
   @override
   void dispose() {
-    widget.logic.removeListener(_onLogicChange);
+    _logicUiListener.dispose();
     _ssidController.dispose();
     _passwordController.dispose();
     _maxClientsController.dispose();

@@ -15,11 +15,12 @@ import 'modules/ui/styles.dart';
 import 'modules/ui/main_window.dart';
 import 'modules/ui/widgets/app_ticker_gate.dart';
 import 'modules/services/app_power_manager.dart';
+import 'modules/services/power_widgets_binding.dart';
 
 import 'modules/build_info.dart';
 
 void main(List<String> args) async {
-  WidgetsFlutterBinding.ensureInitialized();
+  PowerWidgetsBinding();
 
   // -debug enables full-precision ISO timestamps in the visible Console log
   // and the internal diagnostic log file.
@@ -52,11 +53,9 @@ void main(List<String> args) async {
       ? Colors.transparent
       : (isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC));
 
-  // Windows 10 draws a solid box behind caption text on a glass title bar.
-  // The native runner already creates that window with an empty caption;
-  // keep it empty here so window_manager does not write the name back.
-  // Windows 11 shows the app name. The taskbar still uses the executable name.
-  final windowTitle = isWindows11 ? '$appName  v$appVersion' : '';
+  // Keep a non-empty friendly caption on every Windows version so Task Manager
+  // and other native window lists can identify the app.
+  const windowTitle = appName;
 
   // Configure window options
   final windowOptions = WindowOptions(
@@ -135,6 +134,11 @@ void main(List<String> args) async {
   // Initialize power manager (Idle sleep mode & GPU optimization)
   await AppPowerManager.instance.initialize();
   AppPowerManager.instance.onWindowVisibilityChanged(!startMinimized);
+  await AppPowerManager.instance.synchronizeWindowState(
+    isVisible: windowManager.isVisible,
+    isMinimized: windowManager.isMinimized,
+    isFocused: windowManager.isFocused,
+  );
 
   runApp(JaWifiManagerApp(
     logic: wifiLogic,

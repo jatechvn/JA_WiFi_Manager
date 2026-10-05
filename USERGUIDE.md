@@ -1,4 +1,4 @@
-# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.2.1
+# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.2.2
 
 Ứng dụng quản trị và bảo vệ điểm phát sóng di động (Windows Mobile Hotspot) chuyên nghiệp với giao diện Bento Glassmorphic hiện đại, cơ chế phòng thủ xâm nhập kép (ARP Poisoning + Windows Firewall) và cập nhật mạng nội bộ LAN Over-The-Air (OTA).
 
@@ -7,7 +7,7 @@
 ## 📦 1. Cài đặt & Khởi chạy
 
 ### Cách 1: Sử dụng Bản Portable Trực tiếp (Không cần cài đặt)
-1. Tải gói phát hành `JA_WiFi_Manager_v1.2.1_Windows_x64.zip`.
+1. Tải gói phát hành `JA_WiFi_Manager_v1.2.2_Windows_x64.zip`.
 2. Giải nén vào thư mục bất kỳ trên máy tính (ví dụ `D:\Tools\JA_WiFi_Manager\`).
 3. Nhấp đúp vào `ja_wifi_manager.exe` để khởi chạy.
    > **Lưu ý:** Ứng dụng sẽ tự động yêu cầu quyền Administrator (UAC). Vui lòng nhấn **Yes** để cho phép ứng dụng can thiệp vào bảng ARP và Windows Firewall nhằm ngăn chặn thiết bị lạ.

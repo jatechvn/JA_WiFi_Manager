@@ -22,6 +22,7 @@ import 'hotspot_tab.dart';
 import '../services/ota_update_service.dart';
 import '../services/app_power_manager.dart';
 import 'widgets/glass_update_dialog.dart';
+import 'widgets/visible_ui_listener.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -64,6 +65,10 @@ class _MainWindowState extends State<MainWindow>
   final ScrollController _logScrollController = ScrollController();
 
   Timer? _refreshTimer;
+  Timer? _nativeStateTimer;
+  int _nativeSyncInFlight = 0;
+  late final VisibleUiListener _logicUiListener;
+  Future<void> _trayTransition = Future<void>.value();
   AppLifecycleListener? _lifecycleListener;
   final GlobalKey _themeButtonKey = GlobalKey();
 
@@ -81,19 +86,32 @@ class _MainWindowState extends State<MainWindow>
 
     // Hidden startup must not be mistaken for an active window.
     _syncWindowPowerState().catchError((_) {});
+    _nativeStateTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _syncWindowPowerState(coalesce: true).catchError((_) {});
+    });
 
     // Listen to Flutter AppLifecycleState changes
     _lifecycleListener = AppLifecycleListener(
-      onStateChange: AppPowerManager.instance.onLifecycleStateChanged,
+      onStateChange: (state) {
+        AppPowerManager.instance.onLifecycleStateChanged(state);
+        _updateRefreshTimer();
+        if (state == AppLifecycleState.resumed) {
+          _syncWindowPowerState().catchError((_) {});
+        }
+      },
     );
 
     widget.languageNotifier.addListener(_onLanguageChange);
-    widget.logic.addListener(_onLogicChange);
+    _logicUiListener = VisibleUiListener(
+      source: widget.logic,
+      visibility: AppPowerManager.instance.windowVisibilityNotifier,
+      onUpdate: _onLogicChange,
+    );
     _searchController.addListener(_onSearchChanged);
   }
 
   void _startRefreshTimerIfNeeded() {
-    _refreshTimer?.cancel();
+    if (_refreshTimer != null) return;
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
         if (!widget.logic.isGuardActive &&
@@ -114,15 +132,26 @@ class _MainWindowState extends State<MainWindow>
     _refreshTimer = null;
   }
 
+  void _updateRefreshTimer() {
+    final power = AppPowerManager.instance;
+    if (power.isWindowVisible && power.isWindowFocused) {
+      _startRefreshTimerIfNeeded();
+    } else {
+      _stopRefreshTimer();
+    }
+  }
+
   @override
   void dispose() {
+    AppPowerManager.instance.invalidateWindowSnapshot();
+    _nativeStateTimer?.cancel();
     _stopRefreshTimer();
     _lifecycleListener?.dispose();
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     trayManager.destroy();
     widget.languageNotifier.removeListener(_onLanguageChange);
-    widget.logic.removeListener(_onLogicChange);
+    _logicUiListener.dispose();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _logScrollController.dispose();
@@ -178,8 +207,7 @@ class _MainWindowState extends State<MainWindow>
 
   @override
   void onWindowFocus() {
-    AppPowerManager.instance.onWindowFocus();
-    _startRefreshTimerIfNeeded();
+    _syncWindowPowerState().catchError((_) {});
   }
 
   @override
@@ -197,6 +225,7 @@ class _MainWindowState extends State<MainWindow>
   @override
   void onWindowRestore() {
     AppPowerManager.instance.onWindowRestore();
+    _syncWindowPowerState().catchError((_) {});
   }
 
   @override
@@ -204,7 +233,7 @@ class _MainWindowState extends State<MainWindow>
     final closeToTray =
         AppConfig.get('close_to_tray', defaultValue: 'false') == 'true';
     if (closeToTray) {
-      _hideToTray();
+      _queueTrayTransition(_hideToTray);
       return;
     }
     _exitApp();
@@ -217,19 +246,45 @@ class _MainWindowState extends State<MainWindow>
       await windowManager.hide();
     } catch (error) {
       debugPrint('Hide to tray failed: $error');
-      await _syncWindowPowerState();
+      await _syncWindowPowerState(reconcileFailedHide: true);
     }
   }
 
-  Future<void> _syncWindowPowerState() async {
-    final visible = await windowManager.isVisible();
-    final focused = visible && await windowManager.isFocused();
-    if (!mounted) return;
-    AppPowerManager.instance.onWindowVisibilityChanged(visible);
-    if (focused) {
-      onWindowFocus();
-    } else {
-      onWindowBlur();
+  Future<void> _queueTrayTransition(Future<void> Function() transition) {
+    _trayTransition = _trayTransition.then((_) async {
+      if (!mounted || _closeInProgress) return;
+      try {
+        await transition();
+      } catch (error) {
+        debugPrint('Tray transition failed: $error');
+        try {
+          await _syncWindowPowerState();
+        } catch (syncError) {
+          debugPrint('Window state sync failed: $syncError');
+        }
+      }
+    });
+    return _trayTransition;
+  }
+
+  Future<void> _syncWindowPowerState({
+    bool reconcileFailedHide = false,
+    bool coalesce = false,
+  }) async {
+    if (!mounted || (coalesce && _nativeSyncInFlight > 0)) return;
+    _nativeSyncInFlight++;
+    try {
+      final applied = await AppPowerManager.instance.synchronizeWindowState(
+        isVisible: windowManager.isVisible,
+        isMinimized: windowManager.isMinimized,
+        isFocused: windowManager.isFocused,
+        isAlive: () => mounted,
+        reconcileFailedHide: reconcileFailedHide,
+      );
+      if (!mounted || !applied) return;
+      _updateRefreshTimer();
+    } finally {
+      _nativeSyncInFlight--;
     }
   }
 
@@ -265,12 +320,15 @@ class _MainWindowState extends State<MainWindow>
 
   @override
   void onTrayIconMouseDown() async {
-    final isVisible = await windowManager.isVisible();
-    if (isVisible) {
-      await _hideToTray();
-    } else {
-      await _showFromTray();
-    }
+    await _queueTrayTransition(() async {
+      final isVisible = await windowManager.isVisible();
+      if (!mounted) return;
+      if (isVisible) {
+        await _hideToTray();
+      } else {
+        await _showFromTray();
+      }
+    });
   }
 
   @override
@@ -281,7 +339,7 @@ class _MainWindowState extends State<MainWindow>
   @override
   void onTrayMenuItemClick(MenuItem menuItem) async {
     if (menuItem.key == 'show_window') {
-      await _showFromTray();
+      await _queueTrayTransition(_showFromTray);
     } else if (menuItem.key == 'toggle_guard') {
       await _toggleGuard();
     } else if (menuItem.key == 'exit_app') {
@@ -300,7 +358,9 @@ class _MainWindowState extends State<MainWindow>
           _autoScrollLogs &&
           _logScrollController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_logScrollController.hasClients) {
+          if (mounted &&
+              AppPowerManager.instance.isWindowVisible &&
+              _logScrollController.hasClients) {
             _logScrollController
                 .jumpTo(_logScrollController.position.maxScrollExtent);
           }

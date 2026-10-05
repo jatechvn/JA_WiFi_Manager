@@ -12,9 +12,46 @@ class AppPowerManager {
 
   AppPowerManager._internal();
 
-  bool _isWindowFocused = true;
-  bool _isWindowVisible = true;
+  bool _isWindowFocused = false;
+  bool _isWindowVisible = false;
+  bool _explicitlyHidden = false;
   bool _isUserIdle = false;
+  int _windowRevision = 0;
+
+  final ValueNotifier<bool> windowVisibilityNotifier =
+      ValueNotifier<bool>(false);
+
+  /// Ignore snapshots completed after a newer window event or another query.
+  Future<bool> synchronizeWindowState({
+    required Future<bool> Function() isVisible,
+    required Future<bool> Function() isFocused,
+    Future<bool> Function()? isMinimized,
+    bool Function()? isAlive,
+    bool reconcileFailedHide = false,
+  }) async {
+    final revision = ++_windowRevision;
+    final visible = await isVisible();
+    if (revision != _windowRevision || isAlive?.call() == false) return false;
+    final minimized = isMinimized != null && await isMinimized();
+    if (revision != _windowRevision || isAlive?.call() == false) return false;
+    final focused = visible && !minimized && await isFocused();
+    if (revision != _windowRevision || isAlive?.call() == false) return false;
+    if (reconcileFailedHide) _explicitlyHidden = false;
+    if (_explicitlyHidden) return false;
+    final wasActive = _isWindowVisible && _isWindowFocused;
+    _isWindowVisible = visible && !minimized;
+    _isWindowFocused = focused;
+    if (focused && !wasActive) {
+      _isUserIdle = false;
+      _resetIdleTimer();
+    } else if (!focused) {
+      _cancelIdleTimer();
+    }
+    _updateNotifiers();
+    return true;
+  }
+
+  void invalidateWindowSnapshot() => _windowRevision++;
 
   bool _enableIdleSleep = true;
   int _idleTimeoutSeconds = 12;
@@ -25,18 +62,18 @@ class AppPowerManager {
   /// Notifier for heavy background effects (e.g. MeshOrb gradient drifting).
   /// Pauses when Inactive, Minimized, or when User is Idle (>= 12s).
   final ValueNotifier<bool> backgroundAnimationNotifier =
-      ValueNotifier<bool>(true);
+      ValueNotifier<bool>(false);
 
   /// Notifier for real-time status indicators (e.g. WaveIndicator, BorderBeam).
   /// Pauses when Inactive or Minimized; continues running during User Idle
   /// so status and live telemetry remain responsive.
   final ValueNotifier<bool> indicatorsAnimationNotifier =
-      ValueNotifier<bool>(true);
+      ValueNotifier<bool>(false);
 
   /// Notifier for scrolling marquee text.
   /// Freezes offset and pauses timers when Inactive or Minimized.
   final ValueNotifier<bool> marqueeAnimationNotifier =
-      ValueNotifier<bool>(true);
+      ValueNotifier<bool>(false);
 
   // Getters
   bool get isWindowFocused => _isWindowFocused;
@@ -78,6 +115,8 @@ class AppPowerManager {
 
   /// Called when the window gains focus.
   void onWindowFocus() {
+    invalidateWindowSnapshot();
+    if (_explicitlyHidden) return;
     _isWindowFocused = true;
     _isWindowVisible = true;
     _isUserIdle = false;
@@ -87,6 +126,7 @@ class AppPowerManager {
 
   /// Called when the window loses focus (inactive/blur).
   void onWindowBlur() {
+    invalidateWindowSnapshot();
     _isWindowFocused = false;
     _cancelIdleTimer();
     _updateNotifiers();
@@ -94,6 +134,7 @@ class AppPowerManager {
 
   /// Called when the window is minimized to the taskbar.
   void onWindowMinimize() {
+    invalidateWindowSnapshot();
     _isWindowVisible = false;
     _isWindowFocused = false;
     _cancelIdleTimer();
@@ -103,6 +144,8 @@ class AppPowerManager {
   /// Called when the window is restored from taskbar or tray.
   /// CAUTION: On Windows, restoring does NOT guarantee that the window is focused.
   void onWindowRestore() {
+    invalidateWindowSnapshot();
+    _explicitlyHidden = false;
     _isWindowVisible = true;
     _updateNotifiers();
     // Do not set _isWindowFocused = true here; wait for onWindowFocus()
@@ -110,6 +153,8 @@ class AppPowerManager {
 
   /// Called when visibility changes directly.
   void onWindowVisibilityChanged(bool isVisible) {
+    invalidateWindowSnapshot();
+    _explicitlyHidden = !isVisible;
     _isWindowVisible = isVisible;
     if (!isVisible) {
       _isWindowFocused = false;
@@ -120,13 +165,15 @@ class AppPowerManager {
 
   /// Called on Flutter AppLifecycleState change.
   void onLifecycleStateChanged(AppLifecycleState state) {
+    invalidateWindowSnapshot();
     switch (state) {
       case AppLifecycleState.resumed:
-        _isWindowVisible = true;
+        // A resumed hint is not proof that a tray-hidden window was shown.
         _updateNotifiers();
         break;
       case AppLifecycleState.inactive:
         _isWindowFocused = false;
+        _cancelIdleTimer();
         _updateNotifiers();
         break;
       case AppLifecycleState.hidden:
@@ -207,6 +254,7 @@ class AppPowerManager {
   }
 
   void _updateNotifiers() {
+    windowVisibilityNotifier.value = _isWindowVisible;
     final activeAndVisible = _isWindowFocused && _isWindowVisible;
 
     // Background animation stops when not active/visible, or when user is idle
@@ -236,8 +284,10 @@ class AppPowerManager {
     bool enableIdleSleep = true,
     int idleTimeoutSeconds = 12,
   }) {
+    invalidateWindowSnapshot();
     _cancelIdleTimer();
     _lastInteractionTime = null;
+    _explicitlyHidden = false;
     _isWindowFocused = isWindowFocused;
     _isWindowVisible = isWindowVisible;
     _isUserIdle = isUserIdle;

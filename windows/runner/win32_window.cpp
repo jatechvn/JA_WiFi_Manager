@@ -160,12 +160,10 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  // Windows 10 paints a solid box behind caption text on a glass frame.
-  // An empty caption hides that text; the taskbar falls back to the exe name.
-  // Windows 11 keeps the app name. Dart must pass the same empty title or
-  // window_manager writes the name back after this CreateWindow call.
+  // Preserve the friendly caption on all Windows versions. An empty caption
+  // prevents native window lists, including Task Manager, from naming the app.
   HWND window = CreateWindow(
-      window_class, IsWindows11OrGreater() ? title.c_str() : L"", WS_OVERLAPPEDWINDOW,
+      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);

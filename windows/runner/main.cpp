@@ -6,6 +6,7 @@
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "single_instance.h"
 
 struct FindInstanceParams {
   HWND hwndFound = nullptr;
@@ -25,33 +26,23 @@ BOOL CALLBACK FindInstanceWindowProc(HWND hwnd, LPARAM lParam) {
   return TRUE;
 }
 
-// Helper to check if current process is running as Administrator
-bool IsUserAdmin() {
-  bool is_admin = false;
-  HANDLE token = nullptr;
-  if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_QUERY, &token)) {
-    TOKEN_ELEVATION elevation;
-    DWORD size = sizeof(elevation);
-    if (::GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size)) {
-      is_admin = elevation.TokenIsElevated != 0;
-    }
-  }
-  if (token) {
-    ::CloseHandle(token);
-  }
-  return is_admin;
-}
-
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   HANDLE mutex = nullptr;
 
-  // Only perform single-instance check if running as administrator.
-  // This avoids race conditions when a non-admin process elevates itself and exits.
-  if (IsUserAdmin()) {
-    ::SetLastError(0);
-    mutex = ::CreateMutex(nullptr, TRUE, L"Local\\JAWiFiHotspotGuardSingleInstanceMutex");
-    if (mutex != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
+  // The manifest elevates before entering the runner: no transient non-admin
+  // Flutter window can be mistaken for the real instance during relaunch.
+  {
+    const auto result = OpenInstanceMutex(L"Local\\JAWiFiHotspotGuardSingleInstanceMutex");
+    mutex = result.handle;
+    const DWORD mutex_error = result.error;
+    if (mutex == nullptr) {
+      const std::wstring message = L"Cannot acquire the single-instance mutex. Windows error: " +
+          std::to_wstring(mutex_error);
+      ::MessageBoxW(nullptr, message.c_str(), L"JA WiFi Hotspot Guard", MB_OK | MB_ICONERROR);
+      return EXIT_FAILURE;
+    }
+    if (mutex_error == ERROR_ALREADY_EXISTS) {
       HWND existing_hwnd = nullptr;
       for (int i = 0; i < 20; ++i) { // Retry for up to 2 seconds
         FindInstanceParams params;

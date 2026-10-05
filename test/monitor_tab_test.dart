@@ -6,6 +6,7 @@ import 'package:ja_wifi_manager/modules/i18n.dart';
 import 'package:ja_wifi_manager/modules/logic.dart';
 import 'package:ja_wifi_manager/modules/ui/monitor_tab.dart';
 import 'package:ja_wifi_manager/modules/ui/styles.dart';
+import 'package:ja_wifi_manager/modules/services/app_power_manager.dart';
 
 void main() {
   Widget buildMonitor(
@@ -57,6 +58,35 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
   }
+
+  testWidgets(
+      'Monitor defers hidden Guard notifications and shows latest state',
+      (tester) async {
+    useSurface(tester, const Size(1280, 720));
+    final power = AppPowerManager.instance;
+    power.resetForTesting();
+    final logic = WifiGuardLogic();
+    await tester.pumpWidget(buildMonitor(logic));
+    power.onWindowVisibilityChanged(false);
+    for (final name in ['Intermediate client', 'Latest client']) {
+      logic.setMonitorStateForTesting(
+        isGuardActive: true,
+        clients: [
+          client(nickname: name, isWhitelisted: true, isBlocked: false)
+        ],
+      );
+      await tester.pump();
+      expect(find.text(name), findsNothing);
+    }
+    expect(logic.isGuardActive, isTrue);
+    power.onWindowVisibilityChanged(true);
+    await tester.pump();
+    expect(find.text('Latest client'), findsOneWidget);
+    expect(find.text('Intermediate client'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    logic.dispose();
+    power.resetForTesting();
+  });
 
   testWidgets('Guard off keeps blocked and pending clients separate',
       (tester) async {

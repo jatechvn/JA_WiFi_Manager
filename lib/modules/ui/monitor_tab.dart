@@ -11,6 +11,8 @@ import '../logic.dart';
 import '../i18n.dart';
 import 'styles.dart';
 import 'bento_widgets.dart';
+import '../services/app_power_manager.dart';
+import 'widgets/visible_ui_listener.dart';
 
 bool _isBlockedForDisplay(ClientDevice client, bool isGuardActive) {
   return client.isBlocked ||
@@ -48,6 +50,7 @@ class _MonitorTabState extends State<MonitorTab> {
   String _selectedFilter = 'ALL'; // ALL, ALLOWED, BLOCKED, PENDING
   bool _isCardView = true;
   TextEditingController? _internalSearchController;
+  late final VisibleUiListener _logicUiListener;
 
   TextEditingController get _searchController =>
       widget.searchController ??
@@ -57,13 +60,17 @@ class _MonitorTabState extends State<MonitorTab> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    widget.logic.addListener(_onLogicChanged);
+    _logicUiListener = VisibleUiListener(
+      source: widget.logic,
+      visibility: AppPowerManager.instance.windowVisibilityNotifier,
+      onUpdate: _onLogicChanged,
+    );
   }
 
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
-    widget.logic.removeListener(_onLogicChanged);
+    _logicUiListener.dispose();
     _internalSearchController?.dispose();
     super.dispose();
   }
