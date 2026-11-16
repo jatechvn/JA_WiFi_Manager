@@ -66,6 +66,7 @@ class _MainWindowState extends State<MainWindow>
 
   Timer? _refreshTimer;
   Timer? _nativeStateTimer;
+  Timer? _hotspotWatchdogTimer;
   int _nativeSyncInFlight = 0;
   late final VisibleUiListener _logicUiListener;
   Future<void> _trayTransition = Future<void>.value();
@@ -89,15 +90,25 @@ class _MainWindowState extends State<MainWindow>
     _nativeStateTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _syncWindowPowerState(coalesce: true).catchError((_) {});
     });
+    _hotspotWatchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _autoStartHotspot && !_isLoading && !_closeInProgress) {
+        widget.logic
+            .checkAndHealHotspotIfNeeded(
+              autoStartHotspotEnabled: _autoStartHotspot,
+            )
+            .catchError((_) => false);
+      }
+    });
 
     // Listen to Flutter AppLifecycleState changes
     _lifecycleListener = AppLifecycleListener(
       onStateChange: (state) {
-        AppPowerManager.instance.onLifecycleStateChanged(state);
-        _updateRefreshTimer();
         if (state == AppLifecycleState.resumed) {
           _syncWindowPowerState().catchError((_) {});
+          return;
         }
+        AppPowerManager.instance.onLifecycleStateChanged(state);
+        _updateRefreshTimer();
       },
     );
 
@@ -115,6 +126,7 @@ class _MainWindowState extends State<MainWindow>
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
         if (!widget.logic.isGuardActive &&
+            !widget.logic.isHotspotBusy &&
             AppPowerManager.instance.isWindowFocused &&
             AppPowerManager.instance.isWindowVisible) {
           if (_activeTab == 'MONITOR' ||
@@ -145,6 +157,7 @@ class _MainWindowState extends State<MainWindow>
   void dispose() {
     AppPowerManager.instance.invalidateWindowSnapshot();
     _nativeStateTimer?.cancel();
+    _hotspotWatchdogTimer?.cancel();
     _stopRefreshTimer();
     _lifecycleListener?.dispose();
     windowManager.removeListener(this);
@@ -207,6 +220,10 @@ class _MainWindowState extends State<MainWindow>
 
   @override
   void onWindowFocus() {
+    if (AppPowerManager.instance.isWindowVisible) {
+      AppPowerManager.instance.onWindowFocus();
+      _startRefreshTimerIfNeeded();
+    }
     _syncWindowPowerState().catchError((_) {});
   }
 
@@ -301,6 +318,8 @@ class _MainWindowState extends State<MainWindow>
   Future<void> _exitApp() async {
     if (_closeInProgress) return;
     _closeInProgress = true;
+    _hotspotWatchdogTimer?.cancel();
+    _stopRefreshTimer();
     if (mounted) {
       setState(() => _isClosing = true);
     }
@@ -431,6 +450,10 @@ class _MainWindowState extends State<MainWindow>
       showGlassUpdateDialog(
         context: context,
         packageInfo: _availableUpdate!,
+        onBeforeExit: () async {
+          _hotspotWatchdogTimer?.cancel();
+          _stopRefreshTimer();
+        },
       );
     }
   }
@@ -456,12 +479,8 @@ class _MainWindowState extends State<MainWindow>
 
     final config = widget.logic.hotspotConfig;
     if (config != null && config.state == 'Disabled' && hasProfile) {
-      await widget.logic.resetSharedAccessService();
-
-      await Future.delayed(const Duration(seconds: 1));
-
       // Start Hotspot
-      await widget.logic.setHotspotState(true);
+      await widget.logic.setHotspotState(true, isUserInitiated: false);
     }
 
     // Auto-start guard if preference is enabled after hotspot check completes

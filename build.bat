@@ -69,11 +69,14 @@ powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = 
 :: Clean runtime logs and personal configs before packaging
 if exist "%RELEASE_DIR%\logs" rmdir /s /q "%RELEASE_DIR%\logs"
 if exist "%RELEASE_DIR%\*.log" del /q "%RELEASE_DIR%\*.log"
+if exist "%RELEASE_DIR%\*.bak" del /q "%RELEASE_DIR%\*.bak"
+if exist "%RELEASE_DIR%\*.tmp" del /q "%RELEASE_DIR%\*.tmp"
 if exist "%RELEASE_DIR%\config.ini" del /q "%RELEASE_DIR%\config.ini"
 if exist "%RELEASE_DIR%\config.json" del /q "%RELEASE_DIR%\config.json"
 if exist "%RELEASE_DIR%\whitelist.json" del /q "%RELEASE_DIR%\whitelist.json"
 if exist "%RELEASE_DIR%\blacklist.json" del /q "%RELEASE_DIR%\blacklist.json"
 if exist "%RELEASE_DIR%\device_names.json" del /q "%RELEASE_DIR%\device_names.json"
+if exist "%RELEASE_DIR%\blocked_session.json" del /q "%RELEASE_DIR%\blocked_session.json"
 if exist "%RELEASE_DIR%\update_config.json" del /q "%RELEASE_DIR%\update_config.json"
 if exist "%RELEASE_DIR%\user_preferences.json" del /q "%RELEASE_DIR%\user_preferences.json"
 

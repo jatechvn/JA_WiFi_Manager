@@ -9,7 +9,7 @@
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com/windows)
-  [![Release](https://img.shields.io/badge/Release-v1.2.2-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
+  [![Release](https://img.shields.io/badge/Release-v1.3.0-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
   [![License](https://img.shields.io/badge/License-Proprietary-FFB100?style=for-the-badge)](#-许可证与作者)
 
   <p align="center">
@@ -51,7 +51,7 @@
 
 ### 📶 3. 移动热点配置与 ICS 故障修复
 - 直接在软件中配置 SSID、密码、频段（2.4GHz / 5GHz）和最大连接设备数。
-- **强制终止 PID 修复 ICS 服务：** 当 Windows Internet 连接共享 (`SharedAccess`) 卡死时，通过精确定位 PID 并强制终止，重新平滑拉起服务。
+- **原生 Win32 SCM + WinRT C++ 修复 ICS 服务：** 采用原生 C++ Service Control Manager 与 WinRT 接口恢复 `SharedAccess`/`icssvc` 服务，100% 安全，完全规避 Symantec SONAR 拦截。
 - 一键式 IP/DHCP 与 Winsock 重置排障流程。
 
 ### 🖥️ 4. 控制台日志与自动轮转

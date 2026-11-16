@@ -8,6 +8,7 @@ import '../i18n.dart';
 import 'styles.dart';
 import 'bento_widgets.dart';
 import '../services/app_power_manager.dart';
+import 'widgets/hotspot_operation_progress_banner.dart';
 import 'widgets/visible_ui_listener.dart';
 
 class HotspotTab extends StatefulWidget {
@@ -235,21 +236,24 @@ class _HotspotTabState extends State<HotspotTab> {
                               child: Switch(
                                 value: isHotspotOn,
                                 activeThumbColor: c.statusActive,
-                                onChanged: (val) async {
-                                  setState(() => _isToggling = true);
-                                  final ok =
-                                      await widget.logic.setHotspotState(val);
-                                  if (!mounted) return;
-                                  setState(() => _isToggling = false);
-                                  if (ok) {
-                                    widget.onSnackbar(s.hotspotToggled);
-                                  } else {
-                                    widget.onSnackbar(
-                                      s.hotspotToggleFailed,
-                                      isError: true,
-                                    );
-                                  }
-                                },
+                                onChanged: widget.logic.isHotspotBusy
+                                    ? null
+                                    : (val) async {
+                                        if (widget.logic.isHotspotBusy) return;
+                                        setState(() => _isToggling = true);
+                                        final ok = await widget.logic
+                                            .setHotspotState(val);
+                                        if (!mounted) return;
+                                        setState(() => _isToggling = false);
+                                        if (ok) {
+                                          widget.onSnackbar(s.hotspotToggled);
+                                        } else {
+                                          widget.onSnackbar(
+                                            s.hotspotToggleFailed,
+                                            isError: true,
+                                          );
+                                        }
+                                      },
                               ),
                             ),
                     ],
@@ -264,7 +268,7 @@ class _HotspotTabState extends State<HotspotTab> {
                     children: [
                       // Fix ICS button
                       OutlinedButton.icon(
-                        onPressed: _isFixingIcs
+                        onPressed: widget.logic.isHotspotBusy || _isFixingIcs
                             ? null
                             : () async {
                                 setState(() => _isFixingIcs = true);
@@ -277,7 +281,8 @@ class _HotspotTabState extends State<HotspotTab> {
                                   widget.onSnackbar(s.hotspotIcsOk);
                                 } else {
                                   widget.onSnackbar(
-                                    s.hotspotIcsFailed,
+                                    widget.logic.icsRepairError ??
+                                        s.hotspotIcsFailed,
                                     isError: true,
                                   );
                                 }
@@ -318,7 +323,7 @@ class _HotspotTabState extends State<HotspotTab> {
 
                       // Fix DHCP button
                       OutlinedButton.icon(
-                        onPressed: _isFixingDhcp
+                        onPressed: widget.logic.isHotspotBusy || _isFixingDhcp
                             ? null
                             : () async {
                                 setState(() => _isFixingDhcp = true);
@@ -401,6 +406,20 @@ class _HotspotTabState extends State<HotspotTab> {
                         ),
                       ),
                     ],
+                  ),
+                  HotspotOperationProgressBanner(
+                    status: widget.logic.hotspotBusyStatus,
+                    fallbackType: _isFixingIcs
+                        ? HotspotOperationType.fixIcs
+                        : (_isFixingDhcp
+                            ? HotspotOperationType.fixDhcp
+                            : (_isSaving
+                                ? HotspotOperationType.updateConfig
+                                : (_isToggling
+                                    ? HotspotOperationType.toggle
+                                    : null))),
+                    colors: c,
+                    language: context.languageNotifier.language,
                   ),
                 ],
               ),
@@ -845,7 +864,7 @@ class _HotspotTabState extends State<HotspotTab> {
                   SizedBox(
                     height: 38,
                     child: ElevatedButton.icon(
-                      onPressed: _isSaving
+                      onPressed: (_isSaving || widget.logic.isHotspotBusy)
                           ? null
                           : () async {
                               if (!_formKey.currentState!.validate()) {

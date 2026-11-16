@@ -9,7 +9,7 @@
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com/windows)
-  [![Release](https://img.shields.io/badge/Release-v1.2.2-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
+  [![Release](https://img.shields.io/badge/Release-v1.3.0-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
   [![License](https://img.shields.io/badge/License-Proprietary-FFB100?style=for-the-badge)](#-license--author)
 
   <p align="center">
@@ -52,9 +52,9 @@
 - Quick "Whitelist" / "Block" actions available directly from each row in the Monitor tab.
 
 ### 📶 3. Mobile Hotspot Configuration & ICS Repair
-- Configure SSID, password, band (2.4 GHz / 5 GHz) and max client count from a validated in-app form.
-- **Force PID-Kill ICS Troubleshooter:** Forcefully terminates hung `SharedAccess` processes by PID (`taskkill /PID <PID> /F`) and relaunches the service smoothly, resolving persistent Windows ICS crashes.
-- Built-in **DHCP Auto-Fix** flow (restarts the Windows `SharedAccess` service, resets Winsock, and flushes DNS) for hotspots stuck without IP assignment.
+- Configure SSID, password, band (2.4 GHz / 5 GHz / 6 GHz) and max client count from a validated in-app form.
+- **Safe Bounded ICS Troubleshooter:** Recovers stuck `SharedAccess` / `icssvc` services with bounded `ServiceController` stop/start waits and `Wait-HotspotStable` state confirmation (failing closed rather than force-killing shared service hosts).
+- Built-in **DHCP Auto-Fix** flow (confirms Hotspot stop, safely restarts `SharedAccess`, resets Winsock, and flushes DNS) for hotspots stuck without IP assignment.
 - "View Details" shortcut jumps straight to the Monitor tab for the configured network.
 
 ### 🖥️ 4. Console & Diagnostics
@@ -80,37 +80,35 @@
 
 ## 📐 Directory & Technical Architecture
 
+> See [docs/AI_CONTEXT.md](docs/AI_CONTEXT.md) for the complete symbol-level navigation map and directory invariants.
+
 ```text
 JA_WiFi_Manager/
 ├── dist/                                  # Portable distribution folder
-│   └── JA_WiFi_Manager_v1.1.6_Windows_x64.zip   # Ready-to-ship release package
+│   └── JA_WiFi_Manager_v1.3.0_Windows_x64.zip   # Ready-to-ship release package
 │
 ├── lib/
-│   ├── main.dart                          # Entry point: CLI args, window init, admin elevation
-│   └── modules/
-│       ├── logic.dart                     # WifiGuardLogic — scanning, ARP/firewall, whitelist
-│       ├── app_config.dart                # config.ini-backed persistent settings
+│   ├── main.dart                          # Entry point: CLI args, PowerWidgetsBinding, window init
+│   └── modules/                           # Core modular logic, models, services, and UI
+│       ├── logic.dart                     # WifiGuardLogic facade + 6 cohesive domain parts
+│       ├── app_config.dart                # config.ini-backed persistent settings & paths
 │       ├── constants.dart                 # App name/version/status constants
 │       ├── i18n.dart                      # EN / VI / ZH translations + LanguageNotifier
-│       ├── utils.dart                     # Timestamp formatting, shared helpers
+│       ├── utils.dart                     # Timestamp formatting, MAC normalization helpers
 │       ├── logger_config.dart             # Rotating file logger (logs/<date>.log)
 │       ├── native_bridge.dart             # NativeEngine contract
-│       ├── native/
-│       │   └── win_core.dart              # Windows ARP/firewall/admin-elevation commands
-│       └── ui/
-│           ├── main_window.dart           # Tab dispatcher & top-level state
-│           ├── sidebar.dart                # Sidebar nav, Guard card, debug badge/marquee
-│           ├── header_bar.dart             # Search, theme toggle, language cycle
-│           ├── monitor_tab.dart            # Connected-client dashboard
-│           ├── whitelist_tab.dart          # Whitelist CRUD + import/export
-│           ├── hotspot_tab.dart            # Hotspot SSID/password/band config
-│           ├── console_tab.dart            # Live log viewer
-│           ├── settings_tab.dart           # Preferences + User Guide docs
-│           ├── dialogs.dart                # Shared dialog widgets
-│           └── styles.dart                 # AppColors, ThemeNotifier, shared widget styles
+│       ├── models/                        # Data models (wifi_models.dart)
+│       ├── services/                      # AppPowerManager, PowerWidgetsBinding, OTA, ICS script
+│       ├── utils/                         # AtomicFileStore (.tmp -> .bak recovery)
+│       ├── native/                        # Windows ARP/Firewall/elevation native wrappers
+│       └── ui/                            # Fluent Bento tabs, Shell, Styles & widgets/
 │
-├── assets/                                # App icon and packaging scripts
-├── ABOUT.txt                              # Project information card
+├── windows/runner/                        # Win32 host, single-instance mutex, DWM Acrylic/Mica
+├── test/                                  # 18 Flutter test files + test/native/ harnesses
+├── scripts/                               # GPU & frame power diagnostic PowerShell probes
+├── assets/                                # App icon and packaging assets
+├── docs/                                  # AI_CONTEXT.md & AI_HANDOFF.md
+├── USERGUIDE.md                           # Detailed Vietnamese functional user manual
 ├── README.md                              # This file
 └── pubspec.yaml                           # Dependencies & Flutter manifest
 ```
@@ -120,7 +118,7 @@ JA_WiFi_Manager/
 ## 🚀 Quick Start Guide
 
 ### Option A: Portable Run (No Installation Required)
-1. Download `JA_WiFi_Manager_v1.1.6_Windows_x64.zip` from the latest release.
+1. Download `JA_WiFi_Manager_v1.3.0_Windows_x64.zip` from the latest release.
 2. Extract the archive to any location.
 3. Run `ja_wifi_manager.exe` — the app will prompt for Administrator rights on first launch (required for ARP/firewall control).
 4. To run with the visible debug badge and full-precision log timestamps, double-click `debug.bat` instead.
@@ -172,7 +170,8 @@ Whitelisted devices are stored separately in `whitelist.json`, exportable/import
 
 Refer to [CHANGELOG.md](CHANGELOG.md) for full version history details.
 
-- **v1.2.2:** Scheduler Power Gate (`PowerWidgetsBinding`), hidden UI presentation coalescing (`VisibleUiListener`), Windows Single Instance Mutex (`single_instance.h`), friendly app display identity in Task Manager & Windows manifest, auto-generation of OTA `version.json` in `build.bat`, and power diagnostic scripts.
+- **v1.3.0:** Native Win32 SCM + WinRT C++ ICS Recovery (Zero PowerShell / Symantec SONAR elimination), UI Freeze Elimination & Inline Bento Progress Banner (`HotspotOperationProgressBanner`), Project AI Optimizer modular domain parts & boundaries, AtomicFileStore persistence & blocked_session.json session memory, and 108-test automated test suite.
+- **v1.2.2:** Scheduler Power Gate (`PowerWidgetsBinding`), hidden UI presentation coalescing (`VisibleUiListener`), Windows Single Instance Mutex (`windows/runner/single_instance.h`), friendly app display identity in Task Manager & Windows manifest, auto-generation of OTA `version.json` in `build.bat`, and power diagnostic scripts.
 - **v1.2.1:** Full Power & GPU Optimization (`flutter-power-optimizer`), centralized `AppPowerManager` coordinator, Idle Sleep Mode (12s/30s/60s) with 600ms throttled interaction listener, Direction Preservation for reverse animations, Session Epoch Guard and frozen offset in `GlassMarquee`, `AppTickerGate` UI ticker mute, and Win32 `WM_ACTIVATE` focus fix.
 - **v1.2.0:** Dedicated Blacklist Tab with Bento Glassmorphic UI & KPI metrics, real-time dual-layer Blacklist interception (ARP Poisoning + Firewall Inbound Block), Universal Persistent Device Renaming across all views (`device_names.json`), zero-reset LAN OTA configuration protection (`/XF` & auto-backup), and brand-new transparent application logo & multi-size Windows icon.
 - **v1.1.8:** Denser Bento layout, Windows language and Auto theme on first launch, Windows 10 glass title bar caption fix, close-window hang fix, and localized header titles plus monitor filter tooltips.

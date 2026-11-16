@@ -55,9 +55,27 @@ class AppPowerManager {
 
   bool _enableIdleSleep = true;
   int _idleTimeoutSeconds = 12;
+  int _interactiveOperationCount = 0;
 
   Timer? _idleTimer;
   DateTime? _lastInteractionTime;
+
+  bool get hasInteractiveOperation => _interactiveOperationCount > 0;
+
+  /// Keeps visible UI indicators & progress spinners rendering at full speed while
+  /// an active user operation (e.g. Fix ICS / DHCP / Hotspot toggle) is running.
+  void beginInteractiveOperation() {
+    _interactiveOperationCount++;
+    _updateNotifiers();
+  }
+
+  /// Releases an active interactive operation lease and restores GPU gating if idle/blurred.
+  void endInteractiveOperation() {
+    if (_interactiveOperationCount > 0) {
+      _interactiveOperationCount--;
+    }
+    _updateNotifiers();
+  }
 
   /// Notifier for heavy background effects (e.g. MeshOrb gradient drifting).
   /// Pauses when Inactive, Minimized, or when User is Idle (>= 12s).
@@ -256,6 +274,9 @@ class AppPowerManager {
   void _updateNotifiers() {
     windowVisibilityNotifier.value = _isWindowVisible;
     final activeAndVisible = _isWindowFocused && _isWindowVisible;
+    final visibleInteractiveOp = _isWindowVisible &&
+        !_explicitlyHidden &&
+        _interactiveOperationCount > 0;
 
     // Background animation stops when not active/visible, or when user is idle
     final shouldBg = activeAndVisible && (!_enableIdleSleep || !_isUserIdle);
@@ -263,8 +284,9 @@ class AppPowerManager {
       backgroundAnimationNotifier.value = shouldBg;
     }
 
-    // Indicators continue running even during idle, but stop when inactive/minimized
-    final shouldInd = activeAndVisible;
+    // Indicators continue running during idle or visible interactive operations,
+    // and stop when hidden/minimized or blurred without an active operation.
+    final shouldInd = activeAndVisible || visibleInteractiveOp;
     if (indicatorsAnimationNotifier.value != shouldInd) {
       indicatorsAnimationNotifier.value = shouldInd;
     }
@@ -287,6 +309,7 @@ class AppPowerManager {
     invalidateWindowSnapshot();
     _cancelIdleTimer();
     _lastInteractionTime = null;
+    _interactiveOperationCount = 0;
     _explicitlyHidden = false;
     _isWindowFocused = isWindowFocused;
     _isWindowVisible = isWindowVisible;

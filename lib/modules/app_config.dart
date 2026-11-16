@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
+import 'utils/atomic_file_store.dart';
 
 class AppConfig {
   static String? _configPath;
@@ -70,8 +71,11 @@ class AppConfig {
 
   static Future<void> _load() async {
     try {
-      final file = File(_configPath!);
-      if (!file.existsSync()) {
+      final content = AtomicFileStore.readStringResilientSync(
+        _configPath!,
+        validator: AtomicFileStore.isValidIni,
+      );
+      if (content == null) {
         _values = {
           'language': systemLanguageCode(),
           'theme': systemDefaultTheme(),
@@ -83,7 +87,7 @@ class AppConfig {
       }
 
       _values = {};
-      final lines = file.readAsLinesSync();
+      final lines = content.split(RegExp(r'\r?\n'));
       for (final line in lines) {
         final trimmed = line.trim();
         if (trimmed.isEmpty ||
@@ -109,15 +113,14 @@ class AppConfig {
   static Future<void> _save() async {
     try {
       if (_configPath == null) return;
-      final file = File(_configPath!);
-      final parent = file.parent;
-      if (!parent.existsSync()) {
-        parent.createSync(recursive: true);
-      }
       final buffer = StringBuffer();
       buffer.writeln('[app]');
       _values.forEach((k, v) => buffer.writeln('$k=$v'));
-      file.writeAsStringSync(buffer.toString());
+      AtomicFileStore.writeStringAtomicSync(
+        _configPath!,
+        buffer.toString(),
+        validator: AtomicFileStore.isValidIni,
+      );
     } catch (_) {}
   }
 
@@ -156,6 +159,14 @@ class AppConfig {
     return 'device_names.json';
   }
 
+  /// Path to the persistent blocked IP-to-MAC session state json
+  static String getBlockedSessionPath() {
+    if (_configPath != null) {
+      return p.join(p.dirname(_configPath!), 'blocked_session.json');
+    }
+    return 'blocked_session.json';
+  }
+
   /// Path to extract/run the powershell script
   static String getScriptPath() {
     if (_configPath != null) {
@@ -172,8 +183,18 @@ class AppConfig {
     return 'wifi_guard.log';
   }
 
+  /// Path to the config.ini file
+  static String getConfigPath() {
+    return _configPath ?? 'config.ini';
+  }
+
   @visibleForTesting
   static void setCustomBaseDirForTesting(String dirPath) {
     _configPath = p.join(dirPath, 'config.ini');
+  }
+
+  @visibleForTesting
+  static Future<void> reloadForTesting() async {
+    await _load();
   }
 }

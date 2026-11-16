@@ -2,6 +2,35 @@
 
 All notable changes to **JA WiFi Hotspot Guard** will be documented in this file.
 
+## [v1.3.0] - 2026-11-16
+
+### 🚀 Nâng cấp & Tính năng mới
+- **Phục hồi ICS Native Win32 SCM + WinRT C++ (Triệt tiêu Symantec SONAR & 0 PowerShell):**
+  - Chuyển đổi toàn bộ logic sửa lỗi chia sẻ kết nối Internet (ICS Fix) từ PowerShell (`Stop-Process -Force`) sang mã nguồn C++ Win32 native (`windows/runner/ics_service_repair.cpp`) sử dụng API Windows Service Control Manager (`advapi32`) và WinRT Tethering ABI (`INetworkOperatorTetheringManagerStatics2`).
+  - Triệt tiêu 100% cảnh báo giả từ Symantec Endpoint Protection SONAR (`SONAR.Powershell` / `AGR.Terminate`).
+  - Tích hợp `IcsRepairChannel` qua MethodChannel `ja_wifi_manager/ics_repair`, thực thi trên worker thread bất đồng bộ và chuyển tiếp tiến trình an toàn về UI thread qua `PostMessageW`.
+- **Triệt tiêu hiện tượng treo đơ UI & Thanh tiến trình Bento thời gian thực (Inline Progress Banner):**
+  - Cơ chế Interactive Operation Lease (`beginInteractiveOperation` / `endInteractiveOperation`) trên `AppPowerManager` duy trì rendering hiệu ứng/con trỏ ngay cả khi hệ điều hành chập chờn focus trong lúc khởi động lại `SharedAccess`/`icssvc`.
+  - Tạm hoãn các tác vụ quét nặng (WMI/ARP) và tuần tự hóa ghi log bất đồng bộ (`_logIoChain`) khi Hotspot đang bận (`isHotspotBusy`), ngăn chặn triệt để hiện tượng khóa UI isolate trên thư mục OneDrive/đám mây.
+  - Thêm widget `HotspotOperationProgressBanner` trực quan hóa tiến trình sửa lỗi (5 giai đoạn ICS, 3 giai đoạn DHCP), thanh phần trăm động và bộ đếm giây `00:XXs` hỗ trợ 3 ngôn ngữ (VI/EN/ZH) trên tab Monitor và Hotspot.
+- **Tối ưu hóa kiến trúc AI & Phân rã Domain Parts:**
+  - Tách `WifiGuardLogic` thành 6 domain parts (`logic_logs_admin_part.dart`, `logic_device_store_part.dart`, `logic_blacklist_part.dart`, `logic_guard_engine_part.dart`, `logic_scanner_part.dart`, `logic_hotspot_part.dart`) bảo toàn nguyên vẹn 100% hợp đồng API và kiểm thử.
+  - Phân tách cấu trúc widget giao diện thành các thành phần tái sử dụng độc lập (`power_optimizer_card.dart`, `ota_settings_card.dart`, `ota_settings_form.dart`, `monitor_hotspot_banner.dart`, `monitor_kpi_row.dart`, `monitor_bento_device_card.dart`, `monitor_compact_device_table.dart`).
+  - Thiết lập bản đồ điều hướng [docs/AI_CONTEXT.md](docs/AI_CONTEXT.md), root shim [CLAUDE.md](CLAUDE.md) và 6 file phân định ranh giới `MODULE.md`.
+- **Bảo toàn dữ liệu Nguyên tử & Trạng thái phiên chặn (Atomic Persistence & Session Memory):**
+  - Tích hợp `AtomicFileStore` với cơ chế ghi trung gian `.tmp` -> `.bak` tự phục hồi khi có sự cố mất điện.
+  - Duy trì danh sách thiết bị bị chặn trong phiên qua `blocked_session.json`, không bị mất khi xóa hoặc cắt tỉa log.
+  - Bổ sung cơ chế Hotspot Watchdog tự kiểm tra và hàn gắn điểm phát sau 30 giây mất kết nối.
+
+### 🐛 Sửa lỗi & Tối ưu hóa
+- **Khắc phục xung đột trạng thái vòng đời:** Giải quyết triệt để race condition giữa `AppLifecycleState.resumed` và sự kiện `onWindowFocus` trong `MainWindow`.
+- **Làm sạch cờ thực thi PowerShell:** Loại bỏ triệt để các cờ không an toàn `-NonInteractive -WindowStyle Hidden` ở toàn bộ các hàm hỗ trợ Hotspot còn lại.
+- **Bổ sung bộ test suite toàn diện:** Nâng cấp bộ kiểm thử lên 108 tests tự động (Flutter test + Native C++ MSVC test harness).
+
+### 📦 Phát hành
+- Đồng bộ version 1.3.0+14 trong pubspec.yaml, constants.dart, ABOUT.txt, README.md, USERGUIDE.md, RELEASE_NOTES.md.
+- Đóng gói bản phát hành di động chuẩn Windows x64 kèm mã băm xác thực SHA256SUMS.txt và manifest version.json.
+
 ## [v1.2.2] - 2026-10-05
 
 ### 🚀 Nâng cấp & Tính năng mới

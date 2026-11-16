@@ -12,6 +12,7 @@ void main() {
   Widget buildMonitor(
     WifiGuardLogic logic, {
     ValueChanged<String>? onNavigateToTab,
+    ValueChanged<String>? onSnackbar,
   }) {
     final languageNotifier = LanguageNotifier(AppLanguage.vi);
     return LanguageProvider(
@@ -27,7 +28,7 @@ void main() {
               onQuickBlock: (_) {},
               onQuickWhitelist: (_) {},
               onEditNickname: (_, __) {},
-              onSnackbar: (_) {},
+              onSnackbar: onSnackbar ?? (_) {},
               onNavigateToTab: onNavigateToTab,
             ),
           ),
@@ -191,6 +192,22 @@ void main() {
     logic.repairResult.complete(true);
     await tester.pump();
   });
+
+  testWidgets('ICS banner reports exact failing phase', (tester) async {
+    final logic = _ControlledWifiGuardLogic();
+    String? message;
+    await tester
+        .pumpWidget(buildMonitor(logic, onSnackbar: (text) => message = text));
+    await tester.tap(find.byKey(const Key('monitor-hotspot-fix-ics')));
+    logic.repairError =
+        '[Wait Hotspot stable] Hotspot still InTransition after 30 seconds';
+    logic.repairResult.complete(false);
+    await tester.pump();
+    expect(message, logic.repairError);
+    expect(logic.repairCalls, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    logic.dispose();
+  });
 }
 
 class _ControlledWifiGuardLogic extends WifiGuardLogic {
@@ -198,9 +215,12 @@ class _ControlledWifiGuardLogic extends WifiGuardLogic {
   final repairResult = Completer<bool>();
   int toggleCalls = 0;
   int repairCalls = 0;
+  String? repairError;
+  @override
+  String? get icsRepairError => repairError;
 
   @override
-  Future<bool> setHotspotState(bool enable) {
+  Future<bool> setHotspotState(bool enable, {bool isUserInitiated = true}) {
     toggleCalls++;
     return toggleResult.future;
   }

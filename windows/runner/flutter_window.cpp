@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "ics_repair_channel.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -25,6 +26,8 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  ics_repair_channel_ = std::make_unique<ja_wifi::IcsRepairChannel>(
+      GetHandle(), flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -43,6 +46,11 @@ void FlutterWindow::OnDestroy() {
   HWND hwnd = GetHandle();
   if (hwnd != nullptr) {
     ::RemovePropW(hwnd, L"JA_WIFI_MANAGER_INSTANCE");
+  }
+
+  if (ics_repair_channel_) {
+    ics_repair_channel_->Shutdown();
+    ics_repair_channel_.reset();
   }
 
   if (flutter_controller_) {
@@ -64,6 +72,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     if (result) {
       return *result;
     }
+  }
+
+  if (ics_repair_channel_ &&
+      ics_repair_channel_->HandleWindowMessage(message)) {
+    return 0;
   }
 
   switch (message) {

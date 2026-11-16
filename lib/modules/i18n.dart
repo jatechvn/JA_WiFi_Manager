@@ -528,14 +528,14 @@ class AppStrings {
   String get hotspotToggleFailed =>
       _s('Failed to toggle hotspot!', '切换热点失败!', 'Chuyển đổi thất bại!');
   String get hotspotIcsWorking => _s(
-        'Killing ICS PID & restarting SharedAccess...',
-        '正在结束 ICS 进程并重启 SharedAccess...',
-        'Đang buộc dừng PID và khởi động lại dịch vụ ICS...',
+        'Safely restarting SharedAccess...',
+        '正在安全重启 SharedAccess...',
+        'Đang khởi động lại dịch vụ ICS an toàn...',
       );
   String get hotspotIcsOk => _s(
-        'ICS service repaired & restarted successfully!',
-        'ICS 服务已成功重启!',
-        'Dịch vụ ICS đã khởi động lại thành công!',
+        'Services recovered. Turn Hotspot on and verify client DHCP.',
+        '服务已恢复。请开启热点并验证客户端 DHCP。',
+        'Dịch vụ đã phục hồi. Hãy bật Hotspot và kiểm tra thiết bị nhận IP.',
       );
   String get hotspotIcsFailed => _s(
         'Failed to restart ICS service!',

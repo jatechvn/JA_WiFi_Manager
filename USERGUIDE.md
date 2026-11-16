@@ -1,4 +1,4 @@
-# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.2.2
+# 📖 Hướng Dẫn Sử Dụng — JA WiFi Hotspot Guard v1.3.0
 
 Ứng dụng quản trị và bảo vệ điểm phát sóng di động (Windows Mobile Hotspot) chuyên nghiệp với giao diện Bento Glassmorphic hiện đại, cơ chế phòng thủ xâm nhập kép (ARP Poisoning + Windows Firewall) và cập nhật mạng nội bộ LAN Over-The-Air (OTA).
 
@@ -7,7 +7,7 @@
 ## 📦 1. Cài đặt & Khởi chạy
 
 ### Cách 1: Sử dụng Bản Portable Trực tiếp (Không cần cài đặt)
-1. Tải gói phát hành `JA_WiFi_Manager_v1.2.2_Windows_x64.zip`.
+1. Tải gói phát hành `JA_WiFi_Manager_v1.3.0_Windows_x64.zip`.
 2. Giải nén vào thư mục bất kỳ trên máy tính (ví dụ `D:\Tools\JA_WiFi_Manager\`).
 3. Nhấp đúp vào `ja_wifi_manager.exe` để khởi chạy.
    > **Lưu ý:** Ứng dụng sẽ tự động yêu cầu quyền Administrator (UAC). Vui lòng nhấn **Yes** để cho phép ứng dụng can thiệp vào bảng ARP và Windows Firewall nhằm ngăn chặn thiết bị lạ.
@@ -49,7 +49,7 @@
 ### D. Tab Điểm phát sóng (Mobile Hotspot Tab)
 - Quản lý trạng thái Bật/Tắt của Windows Mobile Hotspot.
 - Cấu hình Tên mạng (SSID), Mật khẩu (WPA2-PSK), Băng tần Wi-Fi (Auto / 2.4 GHz / 5.0 GHz) và Giới hạn số lượng máy kết nối.
-- **Công cụ sửa lỗi ICS:** Nút *Sửa lỗi ICS (Buộc dừng)* tự động tìm PID của tiến trình `SharedAccess` bị treo, tắt cưỡng chế và khởi động lại dịch vụ chia sẻ mạng của Windows.
+- **Công cụ sửa lỗi ICS an toàn:** Nút *Sửa lỗi ICS* tự động khởi động lại có kiểm soát dịch vụ `SharedAccess` / `icssvc` bằng `ServiceController` kèm kiểm tra ổn định trạng thái `Wait-HotspotStable`, khắc phục lỗi Hotspot kẹt chuyển tiếp mà không buộc dừng tiến trình dùng chung trái phép.
 
 ### E. Tab Nhật ký (Console Tab)
 - Xem luồng log theo thời gian thực với phân loại mã màu (BLOCK, ALLOW, WARN, INFO).

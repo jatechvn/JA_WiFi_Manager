@@ -9,7 +9,7 @@
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com/windows)
-  [![Release](https://img.shields.io/badge/Release-v1.2.2-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
+  [![Release](https://img.shields.io/badge/Release-v1.3.0-00ADB5?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jatechvn/JA_WiFi_Manager/releases)
   [![License](https://img.shields.io/badge/License-Proprietary-FFB100?style=for-the-badge)](#-giấy-phép--tác-giả)
 
   <p align="center">
@@ -53,7 +53,7 @@
 
 ### 📶 3. Cấu hình Mobile Hotspot & Sửa lỗi ICS
 - Tùy chỉnh SSID, Mật khẩu, Băng tần (2.4 GHz / 5 GHz) và số lượng thiết bị tối đa trực tiếp trong app.
-- **🛠️ Sửa lỗi ICS bằng cách cưỡng chế dừng PID (Force PID-Kill):** Tự động phát hiện PID của `SharedAccess`, buộc dừng bằng `taskkill /F` và khởi động lại dịch vụ khi Windows bị treo ICS.
+- **🛠️ Sửa lỗi ICS Native Win32 SCM + WinRT C++:** Tự động phát hiện và khởi động lại dịch vụ `SharedAccess`/`icssvc` bằng C++ Service Control Manager native, an toàn 100%, không dùng PowerShell và không kích hoạt Symantec SONAR.
 - **Tự động sửa lỗi IP/DHCP:** Quy trình 1-click làm mới toàn diện bộ đệm Winsock, xóa DNS và khởi động lại Hotspot.
 
 ### 🖥️ 4. Bảng điều khiển Console & Chẩn đoán

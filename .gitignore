@@ -33,7 +33,10 @@ whitelist.json
 whitelist - Copy.json
 blacklist.json
 device_names.json
+blocked_session.json
 update_config.json
 user_preferences.json
 ja_wifi_whitelist_*.json
 backup/
+*.bak
+*.tmp

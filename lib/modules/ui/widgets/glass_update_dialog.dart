@@ -4,6 +4,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tray_manager/tray_manager.dart';
 import '../../constants.dart';
 import '../../i18n.dart';
 import '../../services/ota_update_service.dart';
@@ -13,6 +14,7 @@ import '../styles.dart';
 Future<void> showGlassUpdateDialog({
   required BuildContext context,
   required UpdatePackageInfo packageInfo,
+  Future<void> Function()? onBeforeExit,
 }) {
   return showGeneralDialog(
     context: context,
@@ -20,8 +22,10 @@ Future<void> showGlassUpdateDialog({
     barrierLabel: 'GlassUpdateDialog',
     barrierColor: Colors.black.withValues(alpha: 0.55),
     transitionDuration: const Duration(milliseconds: 220),
-    pageBuilder: (ctx, anim1, anim2) =>
-        GlassUpdateDialog(packageInfo: packageInfo),
+    pageBuilder: (ctx, anim1, anim2) => GlassUpdateDialog(
+      packageInfo: packageInfo,
+      onBeforeExit: onBeforeExit,
+    ),
     transitionBuilder: (ctx, anim1, anim2, child) {
       return FadeTransition(
         opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
@@ -39,8 +43,13 @@ Future<void> showGlassUpdateDialog({
 /// Frosted Glass update dialog widget
 class GlassUpdateDialog extends StatefulWidget {
   final UpdatePackageInfo packageInfo;
+  final Future<void> Function()? onBeforeExit;
 
-  const GlassUpdateDialog({super.key, required this.packageInfo});
+  const GlassUpdateDialog({
+    super.key,
+    required this.packageInfo,
+    this.onBeforeExit,
+  });
 
   @override
   State<GlassUpdateDialog> createState() => _GlassUpdateDialogState();
@@ -70,6 +79,14 @@ class _GlassUpdateDialogState extends State<GlassUpdateDialog> {
               _statusText = status;
             });
           }
+        },
+        onBeforeExit: () async {
+          try {
+            await widget.onBeforeExit?.call();
+          } catch (_) {}
+          try {
+            await trayManager.destroy();
+          } catch (_) {}
         },
       );
     } catch (e) {

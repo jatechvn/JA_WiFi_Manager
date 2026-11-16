@@ -8,6 +8,8 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
+  "ics_repair_channel.cpp"
+  "ics_service_repair.cpp"
   "main.cpp"
   "theme_win10.cpp"
   "theme_win11.cpp"
@@ -35,7 +37,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
-target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib" "advapi32.lib" "runtimeobject.lib")
 target_link_options(${BINARY_NAME} PRIVATE
   "/MANIFESTUAC:level='requireAdministrator' uiAccess='false'")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
